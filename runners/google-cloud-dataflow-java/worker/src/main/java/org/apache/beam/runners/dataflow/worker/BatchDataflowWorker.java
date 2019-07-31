@@ -61,6 +61,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_IS_THRASHING;
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_NUM_PUSHBACKS;
+
 /**
  * This is a semi-abstract harness for executing WorkItem tasks in Java workers. Concrete
  * implementations need to implement a WorkUnitClient.
@@ -147,6 +150,7 @@ public class BatchDataflowWorker implements Closeable {
   private final SdkHarnessRegistry sdkHarnessRegistry;
   private final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork;
 
+  private final CounterSet memoryCounter;
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
 
@@ -212,7 +216,12 @@ public class BatchDataflowWorker implements Closeable {
             .concurrencyLevel(CACHE_CONCURRENCY_LEVEL)
             .build();
 
-    this.memoryMonitor = MemoryMonitor.fromOptions(options);
+    this.memoryCounter = new CounterSet();
+    this.memoryMonitor =
+        MemoryMonitor.fromOptions(
+            options,
+            memoryCounter.longSum(MEMORY_MONITOR_NUM_PUSHBACKS.counterName()),
+            memoryCounter.longSum(MEMORY_MONITOR_IS_THRASHING.counterName()));
     this.statusPages =
         WorkerStatusPages.create(
             DEFAULT_STATUS_PORT, this.memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);

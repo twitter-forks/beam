@@ -23,6 +23,7 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -72,15 +73,21 @@ public class WindmillStateCache implements StatusDataProvider {
       new MapMaker().weakValues().concurrencyLevel(4).makeMap();
   private long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
 
+  private final LongAdder invalidateRequests = new LongAdder();
+  private final LongAdder invalidatesFromInconsistentToken = new LongAdder();
+  private final LongAdder staleWorkTokenMiss = new LongAdder();
+  private final LongAdder cacheHits = new LongAdder();
+  private final LongAdder cacheRequests = new LongAdder();
+
   public WindmillStateCache(long workerCacheMb) {
     final Weigher<Weighted, Weighted> weigher = Weighers.weightedKeysAndValues();
     workerCacheBytes = workerCacheMb * MEGABYTES;
     stateCache =
         CacheBuilder.newBuilder()
             .maximumWeight(workerCacheBytes)
+            .concurrencyLevel(Math.max(4, Runtime.getRuntime().availableProcessors()))
             .recordStats()
             .weigher(weigher)
-            .concurrencyLevel(4)
             .build();
   }
 
@@ -111,8 +118,40 @@ public class WindmillStateCache implements StatusDataProvider {
     return w.idWeight + w.entryWeight;
   }
 
+  public long getSize() {
+    return stateCache.size();
+  }
+
   public long getMaxWeight() {
     return workerCacheBytes;
+  }
+
+  public long getEvictionCount() {
+    return stateCache.stats().evictionCount();
+  }
+
+  public double getHitRate() {
+    return stateCache.stats().hitRate();
+  }
+
+  public long getHits() {
+    return cacheHits.sum();
+  }
+
+  public long getRequests() {
+    return cacheRequests.sum();
+  }
+
+  public long getStaleWorkTokenMisses() {
+    return staleWorkTokenMiss.sum();
+  }
+
+  public long getInvalidateRequests() {
+    return invalidateRequests.sum();
+  }
+
+  public long getInvalidatesFromInconsistentToken() {
+    return invalidatesFromInconsistentToken.sum();
   }
 
   /** Per-computation view of the state cache. */
@@ -131,6 +170,7 @@ public class WindmillStateCache implements StatusDataProvider {
       // By removing the ForKey object, all state for the key is orphaned in the cache and will
       // be removed by normal cache cleanup.
       keyIndex.remove(key);
+      invalidateRequests.increment();
     }
 
     /**
@@ -204,11 +244,18 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public <T extends State> @Nullable T get(StateNamespace namespace, StateTag<T> address) {
+      cacheRequests.increment();
       StateId id = new StateId(forKey, stateFamily, namespace);
       @SuppressWarnings("nullness") // Unsure how to annotate lambda return allowing null.
       @Nullable
       StateCacheEntry entry = localCache.computeIfAbsent(id, key -> stateCache.getIfPresent(key));
-      return entry == null ? null : entry.get(namespace, address);
+      
+      if (entry != null) {
+        cacheHits.increment();    
+        return entry.get(namespace, address);
+      } else {
+        return null;
+      }
     }
 
     public <T extends State> void put(
