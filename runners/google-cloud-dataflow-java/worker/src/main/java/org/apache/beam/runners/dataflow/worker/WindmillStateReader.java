@@ -41,6 +41,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillStateReader.StateTag.Kind;
+import org.apache.beam.runners.dataflow.worker.counters.Counter;
+import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
@@ -65,6 +67,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ForwardingFuture;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Instant;
 
 /**
@@ -205,18 +208,28 @@ class WindmillStateReader {
 
   private long bytesRead = 0L;
 
+  private final Counter<Long, Long> stateFetches;
+  private final Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch;
+  private final Counter<Long, CounterFactory.CounterDistribution> stateFetchLatencyMs;
+
   public WindmillStateReader(
       MetricTrackingWindmillServerStub server,
       String computation,
       ByteString key,
       long shardingKey,
       long workToken,
+      Counter<Long, Long> stateFetches,
+      Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch,
+      Counter<Long, CounterFactory.CounterDistribution> stateFetchLatencyMs,
       Supplier<AutoCloseable> readWrapperSupplier) {
     this.server = server;
     this.computation = computation;
     this.key = key;
     this.shardingKey = shardingKey;
     this.workToken = workToken;
+    this.stateFetches = stateFetches;
+    this.itemsPerStateFetch = itemsPerStateFetch;
+    this.stateFetchLatencyMs = stateFetchLatencyMs;
     this.readWrapperSupplier = readWrapperSupplier;
   }
 
@@ -225,8 +238,11 @@ class WindmillStateReader {
       String computation,
       ByteString key,
       long shardingKey,
-      long workToken) {
-    this(server, computation, key, shardingKey, workToken, () -> null);
+      long workToken,
+      Counter<Long, Long> stateFetches,
+      Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch,
+      Counter<Long, CounterFactory.CounterDistribution> stateFetchLatencyMs) {
+    this(server, computation, key, shardingKey, workToken, stateFetches, itemsPerStateFetch, stateFetchLatencyMs, () -> null);
   }
 
   private static final class CoderAndFuture<FutureT> {
@@ -486,16 +502,19 @@ class WindmillStateReader {
       if (toFetch.isEmpty()) {
         return;
       }
-
+      this.stateFetches.addValue(1L);
+      this.itemsPerStateFetch.addValue((long) toFetch.size());
+      long startTimeMs = DateTimeUtils.currentTimeMillis();
       Windmill.KeyedGetDataRequest request = createRequest(toFetch);
       Windmill.KeyedGetDataResponse response;
       try (AutoCloseable readWrapper = readWrapperSupplier.get()) {
         response = server.getStateData(computation, request);
       }
+      long fetchDurationMs = DateTimeUtils.currentTimeMillis() - startTimeMs;
+      this.stateFetchLatencyMs.addValue(fetchDurationMs);
       if (response == null) {
         throw new RuntimeException("Windmill unexpectedly returned null for request " + request);
       }
-
       // Removes tags from toFetch as they are processed.
       consumeResponse(response, toFetch);
     } catch (Exception e) {
