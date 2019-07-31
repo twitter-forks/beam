@@ -39,8 +39,10 @@ import org.joda.time.Duration;
  * requests and throttles requests when memory pressure is high.
  *
  * <p>External API: individual worker threads request state for their computation via {@link
- * #getStateData}. However, requests are either issued using a pool of streaming rpcs or possibly
- * batched requests.
+ * #getStateData}. However, we want to batch requests to WMS rather than calling for each thread, so
+ * calls actually just enqueue a state request in the local queue, which will be handled by up to
+ * {@link #numThreads} polling that queue and making requests to WMS in batches of size {@link
+ * #MAX_READS_PER_BATCH}.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
@@ -53,6 +55,8 @@ public class MetricTrackingWindmillServerStub {
   private final WindmillServerStub server;
   private final MemoryMonitor gcThrashingMonitor;
   private final boolean useStreamingRequests;
+  private final int numStreams;
+  private final int numThreads;
 
   private static final class ReadBatch {
     ArrayList<QueueEntry> reads = new ArrayList<>();
@@ -68,8 +72,6 @@ public class MetricTrackingWindmillServerStub {
   private WindmillServerStub.StreamPool<GetDataStream> streamPool;
 
   private static final int MAX_READS_PER_BATCH = 60;
-  private static final int MAX_ACTIVE_READS = 10;
-  private static final int NUM_STREAMS = 1;
   private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
 
   private static final class QueueEntry {
@@ -89,7 +91,13 @@ public class MetricTrackingWindmillServerStub {
   }
 
   public MetricTrackingWindmillServerStub(
-      WindmillServerStub server, MemoryMonitor gcThrashingMonitor, boolean useStreamingRequests) {
+      WindmillServerStub server,
+      MemoryMonitor gcThrashingMonitor,
+      boolean useStreamingRequests,
+      int numStreams,
+      int numThreads) {
+    this.numStreams = numStreams;
+    this.numThreads = numThreads;
     this.server = server;
     this.gcThrashingMonitor = gcThrashingMonitor;
     // This is used as a queue but is expected to be less than 10 batches.
@@ -101,7 +109,7 @@ public class MetricTrackingWindmillServerStub {
     if (useStreamingRequests) {
       streamPool =
           new WindmillServerStub.StreamPool<>(
-              NUM_STREAMS, STREAM_TIMEOUT, this.server::getDataStream);
+              numStreams, STREAM_TIMEOUT, this.server::getDataStream);
     }
   }
 
@@ -112,7 +120,7 @@ public class MetricTrackingWindmillServerStub {
   private @Nullable ReadBatch addToReadBatch(QueueEntry entry) {
     synchronized (this) {
       ReadBatch batch;
-      if (activeReadThreads < MAX_ACTIVE_READS) {
+      if (activeReadThreads < numThreads) {
         assert (pendingReadBatches.isEmpty());
         activeReadThreads += 1;
         // fall through to below synchronized block
