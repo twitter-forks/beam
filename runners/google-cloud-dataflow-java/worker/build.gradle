@@ -22,6 +22,7 @@ plugins { id 'org.apache.beam.module' }
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
 def DATAFLOW_VERSION = "dataflow.version"
+def DATAFLOW_WORKER_REV = "20230509"
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
@@ -72,6 +73,7 @@ def excluded_dependencies = [
 
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
+        publish: true,
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         classesTriggerCheckerBugs: [
           'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
@@ -205,6 +207,7 @@ dependencies {
     implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
     implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
     implementation library.java.avro
+    implementation library.java.hdrhistogram
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
@@ -249,6 +252,10 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
 }
 
 tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
+
+if (DATAFLOW_WORKER_REV != null) {
+    project.version = project.version + "-" + DATAFLOW_WORKER_REV
+}
 
 //TODO(https://github.com/apache/beam/issues/19115): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
