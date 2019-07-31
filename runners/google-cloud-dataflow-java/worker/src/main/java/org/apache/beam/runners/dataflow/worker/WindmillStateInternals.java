@@ -2078,7 +2078,7 @@ class WindmillStateInternals<K> implements StateInternals {
     public Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKeyAndFamily cache)
         throws IOException {
       if (hasLocalAdditions) {
-        if (COMPACT_NOW.get().get() || bag.valuesAreCached()) {
+        if (bag.valuesAreCached()) {
           // Implicitly clears the bag and combines local and persisted accumulators.
           localAdditionsAccum = getAccum();
         }
