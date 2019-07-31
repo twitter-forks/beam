@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
+import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterDistribution;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -240,11 +241,11 @@ public class DataflowElementExecutionTrackerTest {
 
   /** Build a distribution from the specified values. */
   private CounterDistribution distribution(long... values) {
-    CounterDistribution dist = CounterDistribution.empty();
+    CounterFactory.DistributionCounterValue dist = new CounterFactory.DistributionCounterValue();
     for (long value : values) {
-      dist = dist.addValue(value);
+      dist.addValue(value);
     }
 
-    return dist;
+    return dist.getAndReset();
   }
 }
