@@ -31,6 +31,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
+import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
 import org.apache.beam.runners.dataflow.worker.graph.CreateExecutableStageNodeFunction;
@@ -209,10 +210,14 @@ public class BatchDataflowWorker implements Closeable {
             .concurrencyLevel(CACHE_CONCURRENCY_LEVEL)
             .build();
 
-    this.memoryMonitor = MemoryMonitor.fromOptions(options);
+    CounterSet noop = new CounterSet();
+    this.memoryMonitor = MemoryMonitor.fromOptions(
+        options,
+        noop.longSum(CounterName.named("numPushbacks")),
+        noop.longSum(CounterName.named("isThrashing")));
     this.statusPages =
         WorkerStatusPages.create(
-            DEFAULT_STATUS_PORT, this.memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
+            DEFAULT_STATUS_PORT, memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
 
     if (!DataflowRunner.hasExperiment(options, "disable_debug_capture")) {
       this.debugCaptureManager =

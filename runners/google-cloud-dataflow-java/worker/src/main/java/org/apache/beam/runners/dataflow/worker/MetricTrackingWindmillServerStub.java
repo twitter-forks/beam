@@ -41,7 +41,7 @@ import org.joda.time.Duration;
  * <p>External API: individual worker threads request state for their computation via {@link
  * #getStateData}. However, we want to batch requests to WMS rather than calling for each thread, so
  * calls actually just enqueue a state request in the local queue, which will be handled by up to
- * {@link #NUM_THREADS} polling that queue and making requests to WMS in batches of size {@link
+ * {@link #numThreads} polling that queue and making requests to WMS in batches of size {@link
  * #MAX_READS_PER_BATCH}.
  */
 public class MetricTrackingWindmillServerStub {
@@ -54,13 +54,13 @@ public class MetricTrackingWindmillServerStub {
 
   private final ArrayBlockingQueue<QueueEntry> readQueue;
   private final List<Thread> readPool;
+  private final int numStreams;
+  private final int numThreads;
 
   private WindmillServerStub.StreamPool<GetDataStream> streamPool;
 
   private static final int MAX_READS_PER_BATCH = 60;
   private static final int QUEUE_SIZE = 1000;
-  private static final int NUM_THREADS = 10;
-  private static final int NUM_STREAMS = 1;
   private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
 
   private static final class QueueEntry {
@@ -106,11 +106,17 @@ public class MetricTrackingWindmillServerStub {
   }
 
   public MetricTrackingWindmillServerStub(
-      WindmillServerStub server, MemoryMonitor gcThrashingMonitor, boolean useStreamingRequests) {
+      WindmillServerStub server,
+      MemoryMonitor gcThrashingMonitor,
+      boolean useStreamingRequests,
+      int numStreams,
+      int numThreads) {
+    this.numStreams = numStreams;
+    this.numThreads = numThreads;
     this.server = server;
     this.gcThrashingMonitor = gcThrashingMonitor;
     this.readQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
-    this.readPool = new ArrayList<>(NUM_THREADS);
+    this.readPool = new ArrayList<>(numThreads);
     this.useStreamingRequests = useStreamingRequests;
   }
 
@@ -118,9 +124,9 @@ public class MetricTrackingWindmillServerStub {
     if (useStreamingRequests) {
       streamPool =
           new WindmillServerStub.StreamPool<>(
-              NUM_STREAMS, STREAM_TIMEOUT, this.server::getDataStream);
+              this.numStreams, STREAM_TIMEOUT, this.server::getDataStream);
     } else {
-      for (int i = 0; i < NUM_THREADS; i++) {
+      for (int i = 0; i < this.numThreads; i++) {
         readPool.add(
             new Thread("GetDataThread" + i) {
               @Override

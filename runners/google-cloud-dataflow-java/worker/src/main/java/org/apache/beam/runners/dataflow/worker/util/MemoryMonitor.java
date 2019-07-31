@@ -42,6 +42,9 @@ import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.worker.counters.Counter;
+import org.apache.beam.runners.dataflow.worker.counters.CounterName;
+import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
@@ -182,6 +185,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   private final AtomicDouble maxGCPercentage = new AtomicDouble(0.0);
   private final AtomicInteger numPushbacks = new AtomicInteger(0);
 
+  private final Counter<Long, Long> numPushbacksCounter;
+  private final Counter<Long, Long> isThrashingGauge;
+
   /** Wait point for threads in pushback waiting for gc thrashing to pass. */
   private final Object waitingForResources = new Object();
 
@@ -195,7 +201,10 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
   private final File localDumpFolder;
 
-  public static MemoryMonitor fromOptions(PipelineOptions options) {
+  public static MemoryMonitor fromOptions(
+      PipelineOptions options,
+      Counter<Long, Long> numPushbacksCounter,
+      Counter<Long, Long> isThrashingGauge) {
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     String uploadToGCSPath = debugOptions.getSaveHeapDumpsToGcsPath();
     boolean canDumpHeap = uploadToGCSPath != null || debugOptions.getDumpHeapOnOOM();
@@ -205,7 +214,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         DEFAULT_SHUT_DOWN_AFTER_NUM_GCTHRASHING,
         canDumpHeap,
         uploadToGCSPath,
-        getLoggingDir());
+        getLoggingDir(),
+        numPushbacksCounter,
+        isThrashingGauge);
   }
 
   @VisibleForTesting
@@ -216,13 +227,16 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       boolean canDumpHeap,
       @Nullable String uploadToGCSPath,
       File localDumpFolder) {
+    CounterSet noops = new CounterSet();
     return new MemoryMonitor(
         gcStatsProvider,
         sleepTimeMillis,
         shutDownAfterNumGCThrashing,
         canDumpHeap,
         uploadToGCSPath,
-        localDumpFolder);
+        localDumpFolder,
+        noops.longSum(CounterName.named("numPushbacks")),
+        noops.longSum(CounterName.named("isThrashing")));
   }
 
   private MemoryMonitor(
@@ -231,13 +245,17 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       int shutDownAfterNumGCThrashing,
       boolean canDumpHeap,
       @Nullable String uploadToGCSPath,
-      File localDumpFolder) {
+      File localDumpFolder,
+      Counter<Long, Long> numPushbacksCounter,
+      Counter<Long, Long> isThrashingGauge) {
     this.gcStatsProvider = gcStatsProvider;
     this.sleepTimeMillis = sleepTimeMillis;
     this.shutDownAfterNumGCThrashing = shutDownAfterNumGCThrashing;
     this.canDumpHeap = canDumpHeap;
     this.uploadToGCSPath = uploadToGCSPath;
     this.localDumpFolder = localDumpFolder;
+    this.numPushbacksCounter = numPushbacksCounter;
+    this.isThrashingGauge = isThrashingGauge;
   }
 
   /** For testing only: Wait for the monitor to be running. */
@@ -371,6 +389,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   private void setIsThrashing(boolean serverInGcThrashing) {
     synchronized (waitingForResources) {
       synchronized (waitingForStateChange) {
+        isThrashingGauge.getAndReset();
+        isThrashingGauge.addValue(serverInGcThrashing ? 1L : 0L);
+
         boolean prev = isThrashing.getAndSet(serverInGcThrashing);
         if (prev && !serverInGcThrashing) {
           waitingForResources.notifyAll();
@@ -523,6 +544,8 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       return;
     }
     numPushbacks.incrementAndGet();
+    numPushbacksCounter.addValue(1L);
+
     LOG.info("Waiting for resources for {}. Memory is {}", context, describeMemory());
     synchronized (waitingForResources) {
       boolean interrupted = false;
