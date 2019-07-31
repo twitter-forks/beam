@@ -29,6 +29,7 @@ plugins { id 'org.apache.beam.module' }
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
 def DATAFLOW_VERSION = "dataflow.version"
+def DATAFLOW_WORKER_REV = "20200504"
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
@@ -82,7 +83,8 @@ def excluded_dependencies = [
 
 applyJavaNature(
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
-        publish: false,
+        automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
+        publish: true,
         classesTriggerCheckerBugs: [
           'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
           'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
@@ -110,6 +112,10 @@ applyJavaNature(
 
     dependencies {
       include(dependency(library.java.slf4j_jdk14))
+    }
+            
+    dependencies { 
+      include(dependency(library.java.hdrhistogram))
     }
 
     dependencies {
@@ -223,6 +229,7 @@ dependencies {
     compile library.java.joda_time
     compile library.java.slf4j_api
     compile library.java.vendored_grpc_1_26_0
+    compile library.java.hdrhistogram
     provided library.java.error_prone_annotations
     runtime library.java.slf4j_jdk14
 
@@ -259,6 +266,11 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
 }
 
 tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
+
+if (DATAFLOW_WORKER_REV != null) {
+    project.version = project.version + "-" + DATAFLOW_WORKER_REV
+}
+
 
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
