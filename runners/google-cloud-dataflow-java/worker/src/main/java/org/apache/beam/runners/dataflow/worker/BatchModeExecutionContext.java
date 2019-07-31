@@ -34,6 +34,8 @@ import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
+import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
+import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
@@ -64,6 +66,7 @@ public class BatchModeExecutionContext
   protected final Cache<?, ?> logicalReferenceCache;
   protected final PipelineOptions options;
   protected final ReaderFactory readerFactory;
+  private final CounterSet memoryDeltaCounter;
   private Object key;
 
   private final MetricsContainerRegistry<MetricsContainerImpl> containerRegistry;
@@ -81,6 +84,7 @@ public class BatchModeExecutionContext
 
   private BatchModeExecutionContext(
       CounterFactory counterFactory,
+      CounterSet memoryDeltaCounter,
       Cache<?, WeightedValue<?>> dataCache,
       Cache<?, ?> logicalReferenceCache,
       ReaderFactory readerFactory,
@@ -93,6 +97,7 @@ public class BatchModeExecutionContext
         executionStateTracker,
         executionStateRegistry,
         Long.MAX_VALUE);
+    this.memoryDeltaCounter = memoryDeltaCounter;
     this.logicalReferenceCache = logicalReferenceCache;
     this.readerFactory = readerFactory;
     this.options = options;
@@ -115,6 +120,7 @@ public class BatchModeExecutionContext
     BatchModeExecutionStateRegistry stateRegistry = new BatchModeExecutionStateRegistry();
     return new BatchModeExecutionContext(
         counterFactory,
+        new CounterSet(),
         CacheBuilder.newBuilder()
             .maximumWeight(1_000_000) // weights are in bytes
             .weigher(Weighers.fixedWeightKeys(8))
@@ -224,6 +230,7 @@ public class BatchModeExecutionContext
 
   public static BatchModeExecutionContext create(
       CounterFactory counterFactory,
+      CounterSet memoryCounter,
       Cache<?, WeightedValue<?>> dataCache,
       Cache<?, ?> logicalReferenceCache,
       ReaderFactory readerFactory,
@@ -233,6 +240,7 @@ public class BatchModeExecutionContext
     BatchModeExecutionStateRegistry executionStateRegistry = new BatchModeExecutionStateRegistry();
     return new BatchModeExecutionContext(
         counterFactory,
+        memoryCounter,
         dataCache,
         logicalReferenceCache,
         readerFactory,
@@ -325,6 +333,10 @@ public class BatchModeExecutionContext
     })
     Cache<K, V> rval = (Cache) logicalReferenceCache;
     return rval;
+  }
+
+  public Iterable<CounterUpdate> extractMemoryCounters() {
+    return memoryDeltaCounter.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE);
   }
 
   /** {@link DataflowStepContext} used in batch mode. */
