@@ -166,6 +166,35 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
 
   void setWindmillServicePort(int value);
 
+  @Default.Integer(1)
+  int getNumCommitStreams();
+
+  void setNumCommitStreams(int value);
+
+  @Default.Integer(1)
+  int getNumGetDataStreams();
+
+  void setNumGetDataStreams(int value);
+
+  @Default.Integer(10)
+  int getNumGetDataThreads();
+
+  void setNumGetDataThreads(int value);
+
+  @Default.Integer(1)
+  int getNumDispatchThreads();
+
+  void setNumDispatchThreads(int value);
+
+  /**
+   * The size of the worker's in-memory cache, in megabytes.
+   */
+  @Description("The size of the worker's in-memory cache, in megabytes.")
+  @Default.Integer(100)
+  Integer getWorkerCacheMb();
+
+  void setWorkerCacheMb(Integer value);
+
   /**
    * Number of threads to use on the Dataflow worker harness. If left unspecified, the Dataflow
    * service will compute an appropriate number of threads to use.

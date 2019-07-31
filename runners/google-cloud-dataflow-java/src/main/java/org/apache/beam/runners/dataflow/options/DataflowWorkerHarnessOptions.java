@@ -41,15 +41,4 @@ public interface DataflowWorkerHarnessOptions extends DataflowPipelineOptions {
   String getJobId();
 
   void setJobId(String value);
-
-  /**
-   * The size of the worker's in-memory cache, in megabytes.
-   *
-   * <p>Currently, this cache is used for storing read values of side inputs.
-   */
-  @Description("The size of the worker's in-memory cache, in megabytes.")
-  @Default.Integer(100)
-  Integer getWorkerCacheMb();
-
-  void setWorkerCacheMb(Integer value);
 }

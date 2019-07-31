@@ -24,6 +24,9 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.concurrent.Future;
+
+import org.apache.beam.runners.dataflow.worker.counters.CounterName;
+import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.sdk.coders.Coder;
@@ -70,8 +73,16 @@ public class WindmillStateReaderTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
+    CounterSet counterSet = new CounterSet();
     underTest =
-        new WindmillStateReader(mockWindmill, COMPUTATION, DATA_KEY, SHARDING_KEY, WORK_TOKEN);
+        new WindmillStateReader(mockWindmill,
+            COMPUTATION,
+            DATA_KEY,
+            SHARDING_KEY,
+            WORK_TOKEN,
+            counterSet.longSum(CounterName.named("stateFetches")),
+            counterSet.distribution(CounterName.named("itemsPerFetch")),
+            counterSet.distribution(CounterName.named("fetchLatency")));
   }
 
   private Windmill.Value intValue(int value) throws IOException {

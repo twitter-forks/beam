@@ -40,7 +40,32 @@ public class DataflowSystemMetrics {
     JAVA_HARNESS_MAX_MEMORY("dataflow_java_harness_max_memory"),
     JAVA_HARNESS_RESTARTS("dataflow_java_harness_restarts"),
     WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
-    MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
+    MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing"),
+    STATE_CACHE_WEIGHT("state_cache_weight"),
+    STATE_CACHE_MAX_WEIGHT("state_cache_max_weight"),
+    STATE_CACHE_SIZE("state_cache_size"),
+    STATE_CACHE_HITS("state_cache_hits"),
+    STATE_CACHE_REQUESTS("state_cache_requests"),
+    STATE_CACHE_HIT_RATE("state_cache_hit_rate"),
+    STATE_CACHE_EVICTIONS("state_cache_evictions"),
+    STATE_CACHE_INVALIDATE_REQUESTS("state_cache_invalidate_requests"),
+    STATE_CACHE_INVALIDATES_FROM_INCONSISTENT_TOKEN("state_cache_invalidates_from_inconsistent_token"),
+    STATE_CACHE_STALE_WORK_TOKEN_MISSES("state_cache_stale_work_token_misses"),
+    COMMIT_DURATION_MS("commit_duration_ms"),
+    COMMIT_SIZE_BYTES_PER_COMMIT("commit_size_bytes_per_commit"),
+    COMMIT_SIZE_BYTES("commit_size_bytes"),
+    CURRENT_COMMIT_SIZE_BYTES("current_commit_size_bytes"),
+    WORK_ITEMS_RECEIVED("work_items_received"),
+    GET_WORK_ITEM_BATCHES_RECEIVED("get_work_item_batches_received"),
+    WORK_ITEMS_PER_BATCH("work_items_per_batch"),
+    COMPUTATION_WORK_ITEMS_RECEIVED("computation_work_items_received"),
+    GET_WORK_ITEM_WAIT_TIME_MS("get_work_item_wait_time_ms"),
+    STATE_FETCH_BATCHES("state_fetch_batches"),
+    STATE_FETCH_BATCH_SIZE("state_fetch_batch_size"),
+    STATE_FETCH_LATENCY_MS("state_fetch_latency_ms"),
+    MEMORY_MONITOR_IS_THRASHING("memory_monitor_is_thrashing"),
+    MEMORY_MONITOR_NUM_PUSHBACKS("memory_monitor_num_pushbacks"),
+    ;
 
     private final String name;
 
@@ -72,7 +97,12 @@ public class DataflowSystemMetrics {
      * This is based on user updated metric "throttled-msecs", reported as part of system metrics so
      * that streaming autoscaler can access it.
      */
-    THROTTLED_MSECS("dataflow_throttled_msecs");
+    THROTTLED_MSECS("dataflow_throttled_msecs"),
+
+    STATE_FETCHES("state_fetches_per_stage"),
+
+    STATE_FETCH_LATENCY("state_fetch_latency_per_stage")
+    ;
 
     private final String namePrefix;
 

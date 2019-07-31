@@ -17,14 +17,21 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
-import com.google.auto.value.AutoValue;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.auto.value.AutoValue;
+
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.HistogramIterationValue;
+import org.HdrHistogram.Recorder;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -211,34 +218,6 @@ public class CounterFactory {
       return EMPTY;
     }
 
-    /** Returns the {@link CounterDistribution} resulting from adding the given value. */
-    public final CounterDistribution addValue(long value) {
-      Preconditions.checkArgument(
-          value >= 0, "Distribution counters support only non-negative numbers.");
-
-      long min = Math.min(this.getMin(), value);
-      long max = Math.max(this.getMax(), value);
-      long count = this.getCount() + 1;
-      long sum = this.getSum() + value;
-      // TODO: Replace sum-of-squares with statistics for a better stddev algorithm.
-      double sumOfSquares = this.getSumOfSquares() + Math.pow(value, 2);
-
-      int bucketIndex = calculateBucket(value);
-      List<Long> buckets = incrementBucket(bucketIndex);
-      int firstBucketOffset =
-          this.getBuckets().isEmpty()
-              ? bucketIndex
-              : Math.min(this.getFirstBucketOffset(), bucketIndex);
-
-      return CounterDistribution.builder()
-          .minMax(min, max)
-          .count(count)
-          .sum(sum)
-          .sumOfSquares(sumOfSquares)
-          .buckets(firstBucketOffset, buckets)
-          .build();
-    }
-
     /** There are 3 buckets for every power of ten: 1, 2, and 5. */
     private static final int BUCKETS_PER_10 = 3;
 
@@ -261,51 +240,6 @@ public class CounterFactory {
       }
 
       return 1 + (log10Floor * BUCKETS_PER_10) + bucketOffsetWithinPowerOf10;
-    }
-
-    /**
-     * Increment the bucket for the given index, and return a new list of buckets.
-     *
-     * <p>If the bucket at the given index is already in the list, this will increment the existing
-     * value. If the specified index is outside of the current bucket range, the bucket list will be
-     * extended to incorporate the new bucket.
-     */
-    private List<Long> incrementBucket(int bucketIndex) {
-      int firstBucketOffset = getFirstBucketOffset();
-      List<Long> curBuckets = getBuckets();
-      ImmutableList.Builder<Long> newBuckets = ImmutableList.builder();
-
-      if (getBuckets().isEmpty()) {
-        // Initial bucket
-        newBuckets.add(1L);
-
-      } else if (bucketIndex < firstBucketOffset) {
-        // New prefix bucket
-        newBuckets.add(1L);
-        for (int i = bucketIndex + 1; i < firstBucketOffset; i++) {
-          newBuckets.add(0L);
-        }
-        newBuckets.addAll(curBuckets);
-
-      } else if (bucketIndex >= firstBucketOffset + curBuckets.size()) {
-        // New suffix bucket
-        newBuckets.addAll(curBuckets);
-        for (int i = firstBucketOffset + curBuckets.size(); i < bucketIndex; i++) {
-          newBuckets.add(0L);
-        }
-        newBuckets.add(1L);
-
-      } else {
-        // Value in existing bucket
-        int curIndex = firstBucketOffset;
-        for (Long curValue : curBuckets) {
-          long newValue = (bucketIndex == curIndex) ? curValue + 1 : curValue;
-          newBuckets.add(newValue);
-          curIndex++;
-        }
-      }
-
-      return newBuckets.build();
     }
   }
 
@@ -842,29 +776,78 @@ public class CounterFactory {
 
   /** Implements a {@link Counter} for tracking a distribution of long values. */
   public static class DistributionCounterValue extends BaseCounterValue<Long, CounterDistribution> {
-    // TODO: Using CounterDistribution internally is likely very expensive as each
-    // update requires copying the buckets list into a new instance. This should be profiled
-    // and likely optimized to use a mutable internal representation of the value.
-    private final AtomicReference<CounterDistribution> aggregate = new AtomicReference<>();
+    private final static AtomicLongFieldUpdater<DistributionCounterValue> SUM_UPDATER =
+        AtomicLongFieldUpdater.newUpdater(DistributionCounterValue.class, "sumValue");
+
+    private final static AtomicLongFieldUpdater<DistributionCounterValue> SUM_OF_SQUARES_UPDATER =
+        AtomicLongFieldUpdater.newUpdater(DistributionCounterValue.class, "sumOfSquares");
+
+    private final Recorder histogram = new Recorder(2);
+
+    private volatile long sumValue = 0;
+    private volatile long sumOfSquares = 0;
 
     @Override
     public void addValue(Long value) {
-      CounterDistribution current;
-      CounterDistribution update;
-      do {
-        current = aggregate.get();
-        update = current.addValue(value);
-      } while (!aggregate.compareAndSet(current, update));
+      histogram.recordValue(value);
+      SUM_UPDATER.addAndGet(this, value);
+      SUM_OF_SQUARES_UPDATER.addAndGet(this, (long) Math.pow(value, 2));
+    }
+
+    private static CounterDistribution toCounterDistribution(Histogram v, long sum, double sumOfSquares) {
+      if (v.getTotalCount() == 0)
+        return CounterDistribution.EMPTY;
+
+      List<Long> buckets = new ArrayList<>();
+      int firstBucket = -1;
+      for (HistogramIterationValue r : v.recordedValues()) {
+        int bucket = CounterDistribution.calculateBucket(r.getValueIteratedTo());
+        if (firstBucket == -1)
+          firstBucket = bucket;
+
+        if (bucket >= buckets.size()) {
+          for (int i = buckets.size(); i <= bucket; i++) {
+            buckets.add(0L);
+          }
+        }
+
+        Long existingValue = buckets.get(bucket);
+        buckets.set(bucket, existingValue + r.getCountAtValueIteratedTo());
+      }
+
+      if (firstBucket > 0) {
+        buckets = buckets.subList(firstBucket, buckets.size());
+      }
+
+      return CounterDistribution
+          .builder()
+          .min(v.getMinValue())
+          .max(v.getMaxValue())
+          .count(v.getTotalCount())
+          .sum(sum)
+          .sumOfSquares(sumOfSquares)
+          .buckets(firstBucket, ImmutableList.copyOf(buckets))
+          .build();
     }
 
     @Override
     public CounterDistribution getAggregate() {
-      return aggregate.get();
+      throw new UnsupportedOperationException("Cumulative histograms are unsupported");
     }
 
     @Override
     public CounterDistribution getAndReset() {
-      return aggregate.getAndSet(CounterDistribution.empty());
+      final Histogram snapshot;
+      final long sum;
+      final double sumOfSquares;
+
+      snapshot = histogram.getIntervalHistogram();
+      histogram.reset();
+
+      sum = SUM_UPDATER.getAndSet(this, 0);
+      sumOfSquares = SUM_OF_SQUARES_UPDATER.getAndSet(this, 0);
+
+      return toCounterDistribution(snapshot, sum, sumOfSquares);
     }
 
     @Override
