@@ -29,6 +29,7 @@ plugins { id 'org.apache.beam.module' }
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
 def DATAFLOW_VERSION = "dataflow.version"
+def DATAFLOW_WORKER_REV = "20200504"
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
@@ -80,7 +81,8 @@ def excluded_dependencies = [
 
 applyJavaNature(
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
-        publish: false,
+        automaticModuleName: 'org.apache.beam.runners.dataflow.worker',
+        publish: true,
         classesTriggerCheckerBugs: [
           'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
           'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
@@ -108,6 +110,10 @@ applyJavaNature(
 
     dependencies {
       include(dependency(library.java.slf4j_jdk14))
+    }
+            
+    dependencies { 
+      include(dependency(library.java.hdrhistogram))
     }
 
     dependencies {
@@ -222,6 +228,7 @@ dependencies {
     implementation "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
     implementation "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
     implementation library.java.avro
+    implementation library.java.hdrhistogram
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
@@ -232,7 +239,6 @@ dependencies {
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
     runtimeOnly library.java.slf4j_jdk14
-
     // Any test dependency which intersects with our relocation rules above needs to be relocated
     // as well and placed within the testImplementation configuration. Otherwise we can place it within
     // the shadowTest configuration.
@@ -266,6 +272,11 @@ project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
 }
 
 tasks.check.dependsOn project.tasks.validateShadedJarContainsSlf4jJdk14
+
+if (DATAFLOW_WORKER_REV != null) {
+    project.version = project.version + "-" + DATAFLOW_WORKER_REV
+}
+
 
 //TODO(BEAM-5657): checktyle task should be enabled in the future.
 checkstyleMain.enabled = false
