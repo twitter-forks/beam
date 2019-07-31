@@ -114,7 +114,7 @@ class WindmillCombiningState<InputT, AccumT, OutputT> extends WindmillState
   public Future<Windmill.WorkItemCommitRequest> persist(WindmillStateCache.ForKeyAndFamily cache)
       throws IOException {
     if (hasLocalAdditions) {
-      if (WindmillStateInternals.COMPACT_NOW.get().get() || bag.valuesAreCached()) {
+      if (bag.valuesAreCached()) {
         // Implicitly clears the bag and combines local and persisted accumulators.
         localAdditionsAccumulator = getAccum();
       }

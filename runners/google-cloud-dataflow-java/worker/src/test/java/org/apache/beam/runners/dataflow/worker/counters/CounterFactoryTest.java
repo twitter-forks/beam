@@ -59,17 +59,19 @@ public class CounterFactoryTest {
 
   @Test
   public void testCounterDistributionAddValue() {
-    CounterDistribution counter = CounterDistribution.empty();
+    CounterFactory.DistributionCounterValue dcv = new CounterFactory.DistributionCounterValue();
     List<Long> expectedBuckets = ImmutableList.of(1L, 3L, 0L, 0L, 0L, 0L, 0L, 0L, 1L, 1L);
     for (long value : new long[] {1, 500, 2, 3, 1000, 4}) {
-      counter = counter.addValue(value);
+      dcv.addValue(value);
     }
+    CounterDistribution counter = dcv.getAggregate();
     assertEquals(expectedBuckets, counter.getBuckets());
     assertEquals(1250030.0, counter.getSumOfSquares(), 0);
     assertEquals(1510, counter.getSum());
     assertEquals(1, counter.getFirstBucketOffset());
     assertEquals(6, counter.getCount());
     assertEquals(1, counter.getMin());
-    assertEquals(1000, counter.getMax());
+    // using a histogram to track the max causes slight imprecision in the max
+    assertEquals(1003, counter.getMax());
   }
 }

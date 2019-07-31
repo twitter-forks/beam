@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.*;
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_IS_THRASHING;
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_NUM_PUSHBACKS;
+
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.Closeable;
@@ -27,6 +31,8 @@ import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
+import org.apache.beam.runners.dataflow.worker.counters.Counter;
+import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
 import org.apache.beam.runners.dataflow.worker.graph.MapTaskToNetworkFunction;
@@ -114,12 +120,32 @@ public class BatchDataflowWorker implements Closeable {
   private final Cache<?, ?> sideInputWeakReferenceCache;
 
   private final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork;
+
+  private final CounterSet memoryCounter;
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
   /** Status pages returning health of worker. */
   private final WorkerStatusPages statusPages;
   /** Periodic sender of debug information to the debug capture service. */
   private DebugCapture.Manager debugCaptureManager = null;
+
+  private static final CounterName BATCH_WORK_ITEM_SUCCESS_COUNTER_NAME =
+      CounterName.named("work_item_success");
+  private static final CounterName BATCH_WORK_ITEM_FAILURE_COUNTER_NAME =
+      CounterName.named("work_item_failure");
+
+  /**
+   * Returns a {@link BatchDataflowWorker} configured to execute user functions via intrinsic Java
+   * execution.
+   *
+   * <p>This is also known as the "legacy" or "pre-portability" approach. It is not yet deprecated
+   * as there is not a compatible path forward for users.
+   */
+  static BatchDataflowWorker forBatchIntrinsicWorkerHarness(
+      WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
+    return new BatchDataflowWorker(
+        workUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
+  }
 
   protected BatchDataflowWorker(
       WorkUnitClient workUnitClient,
@@ -144,7 +170,12 @@ public class BatchDataflowWorker implements Closeable {
             .concurrencyLevel(CACHE_CONCURRENCY_LEVEL)
             .build();
 
-    this.memoryMonitor = MemoryMonitor.fromOptions(options);
+    this.memoryCounter = new CounterSet();
+    this.memoryMonitor =
+        MemoryMonitor.fromOptions(
+            options,
+            memoryCounter.longSum(MEMORY_MONITOR_NUM_PUSHBACKS.counterName()),
+            memoryCounter.longSum(MEMORY_MONITOR_IS_THRASHING.counterName()));
     this.statusPages =
         WorkerStatusPages.create(DEFAULT_STATUS_PORT, this.memoryMonitor, () -> true);
 
@@ -158,19 +189,6 @@ public class BatchDataflowWorker implements Closeable {
     this.memoryMonitorThread = startMemoryMonitorThread(memoryMonitor);
 
     ExecutionStateSampler.instance().start();
-  }
-
-  /**
-   * Returns a {@link BatchDataflowWorker} configured to execute user functions via intrinsic Java
-   * execution.
-   *
-   * <p>This is also known as the "legacy" or "pre-portability" approach. It is not yet deprecated
-   * as there is not a compatible path forward for users.
-   */
-  static BatchDataflowWorker forBatchIntrinsicWorkerHarness(
-      WorkUnitClient workUnitClient, DataflowWorkerHarnessOptions options) {
-    return new BatchDataflowWorker(
-        workUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
   }
 
   private static DebugCapture.Manager initializeAndStartDebugCaptureManager(
@@ -218,6 +236,11 @@ public class BatchDataflowWorker implements Closeable {
     LOG.debug("Executing: {}", workItem);
 
     DataflowWorkExecutor worker = null;
+    CounterSet counterSet = new CounterSet();
+    Counter<Long, Long> workItemsReceived = counterSet.longSum(WORK_ITEMS_RECEIVED.counterName());
+    Counter<Long, Long> workItemSuccess = counterSet.longSum(BATCH_WORK_ITEM_SUCCESS_COUNTER_NAME);
+    Counter<Long, Long> workItemFailure = counterSet.longSum(BATCH_WORK_ITEM_FAILURE_COUNTER_NAME);
+
     try {
       // Populate PipelineOptions with data from work unit.
       options.setProject(workItem.getProjectId());
@@ -231,10 +254,10 @@ public class BatchDataflowWorker implements Closeable {
         throw new RuntimeException("Unknown kind of work item: " + workItem);
       }
 
-      CounterSet counterSet = new CounterSet();
       BatchModeExecutionContext executionContext =
           BatchModeExecutionContext.create(
               counterSet,
+              this.memoryCounter,
               sideInputDataCache,
               sideInputWeakReferenceCache,
               readerRegistry,
@@ -273,11 +296,15 @@ public class BatchDataflowWorker implements Closeable {
 
       DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
+
+      workItemsReceived.addValue(1L);
       executeWork(worker, progressUpdater);
+      workItemSuccess.addValue(1L);
       workItemStatusClient.reportSuccess();
       return true;
 
     } catch (Throwable e) {
+      workItemFailure.addValue(1L);
       workItemStatusClient.reportError(e);
       return false;
 

@@ -39,6 +39,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.counters.Counter;
+import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -62,6 +65,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Range;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.SettableFuture;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Instant;
 
 /**
@@ -124,13 +128,23 @@ public class WindmillStateReader {
   private final ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting;
   private long bytesRead = 0L;
 
+  private final Supplier<Boolean> workItemIsFailed;
+
+  private final Counter<Long, Long> stateFetches;
+  private final Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch;
+  private final Counter<Long, CounterFactory.CounterDistribution> stateFetchLatencyMs;
+
   public WindmillStateReader(
       MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
       String computation,
       ByteString key,
       long shardingKey,
       long workToken,
-      Supplier<AutoCloseable> readWrapperSupplier) {
+      Supplier<AutoCloseable> readWrapperSupplier,
+      Supplier<Boolean> workItemIsFailed,
+      Counter<Long, Long> stateFetches,
+      Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch,
+      Counter<Long, CounterFactory.CounterDistribution> stateFetchLatencyMs) {
     this.metricTrackingWindmillServerStub = metricTrackingWindmillServerStub;
     this.computation = computation;
     this.key = key;
@@ -139,15 +153,10 @@ public class WindmillStateReader {
     this.readWrapperSupplier = readWrapperSupplier;
     this.waiting = new ConcurrentHashMap<>();
     this.pendingLookups = new ConcurrentLinkedQueue<>();
-  }
-
-  public WindmillStateReader(
-      MetricTrackingWindmillServerStub metricTrackingWindmillServerStub,
-      String computation,
-      ByteString key,
-      long shardingKey,
-      long workToken) {
-    this(metricTrackingWindmillServerStub, computation, key, shardingKey, workToken, () -> null);
+    this.workItemIsFailed = workItemIsFailed;
+    this.stateFetches = stateFetches;
+    this.itemsPerStateFetch = itemsPerStateFetch;
+    this.stateFetchLatencyMs = stateFetchLatencyMs;
   }
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {
@@ -377,6 +386,9 @@ public class WindmillStateReader {
       if (toFetch.isEmpty()) {
         return;
       }
+      //Update metrics
+      this.stateFetches.addValue(1L);
+      this.itemsPerStateFetch.addValue((long) toFetch.size());
       try {
         KeyedGetDataResponse response = tryGetDataFromWindmill(toFetch);
         // Removes tags from toFetch as they are processed.
@@ -404,10 +416,16 @@ public class WindmillStateReader {
 
   private KeyedGetDataResponse tryGetDataFromWindmill(HashSet<StateTag<?>> stateTags)
       throws Exception {
+    if (workItemIsFailed.get()) {
+      throw new WorkItemCancelledException(shardingKey);
+    }
+    long startTimeMs = DateTimeUtils.currentTimeMillis();
     KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
     try (AutoCloseable ignored = readWrapperSupplier.get()) {
-      return Optional.ofNullable(
-              metricTrackingWindmillServerStub.getStateData(computation, keyedGetDataRequest))
+      KeyedGetDataResponse response = metricTrackingWindmillServerStub.getStateData(computation, keyedGetDataRequest);
+      long fetchDurationMs = DateTimeUtils.currentTimeMillis() - startTimeMs;
+      this.stateFetchLatencyMs.addValue(fetchDurationMs);
+      return Optional.ofNullable(response)
           .orElseThrow(
               () ->
                   new RuntimeException(

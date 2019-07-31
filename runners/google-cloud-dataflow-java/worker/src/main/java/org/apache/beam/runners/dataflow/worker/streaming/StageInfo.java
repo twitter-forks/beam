@@ -29,25 +29,26 @@ import org.apache.beam.runners.dataflow.worker.MetricsContainerRegistry;
 import org.apache.beam.runners.dataflow.worker.StreamingDataflowWorker;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.StreamingStepMetricsContainer;
-import org.apache.beam.runners.dataflow.worker.counters.Counter;
-import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
-import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
-import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.runners.dataflow.worker.counters.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.joda.time.DateTimeUtils;
+import org.joda.time.Instant;
 
 /** Contains a few of the stage specific fields. E.g. metrics container registry, counters etc. */
 @AutoValue
 public abstract class StageInfo {
   public static StageInfo create(
-      String stageName, String systemName, StreamingDataflowWorker worker) {
-    NameContext nameContext = NameContext.create(stageName, null, systemName, null);
+      String stageName, String systemName, String userName, StreamingDataflowWorker worker) {
+    NameContext nameContext = NameContext.create(stageName, null, systemName, userName);
     CounterSet deltaCounters = new CounterSet();
+    CounterSet cumulativeCounters = new CounterSet();
     return new AutoValue_StageInfo(
         stageName,
         systemName,
         StreamingStepMetricsContainer.createRegistry(),
         new StreamingModeExecutionStateRegistry(worker),
         deltaCounters,
+            cumulativeCounters,
         deltaCounters.longSum(
             DataflowSystemMetrics.StreamingPerStageSystemCounterNames.THROTTLED_MSECS.counterName(
                 nameContext)),
@@ -56,7 +57,15 @@ public abstract class StageInfo {
                 .counterName(nameContext)),
         deltaCounters.longSum(
             DataflowSystemMetrics.StreamingPerStageSystemCounterNames.TIMER_PROCESSING_MSECS
-                .counterName(nameContext)));
+                .counterName(nameContext)),
+            deltaCounters.longSum(
+                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.STATE_FETCHES.counterName(nameContext)),
+            deltaCounters.distribution(
+                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.STATE_FETCH_LATENCY.counterName(nameContext)),
+            cumulativeCounters.longSum(
+                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.INPUT_WATERMARK_LAG.counterName(nameContext)),
+            cumulativeCounters.longSum(
+                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.OUTPUT_WATERMARK_LAG.counterName(nameContext)));
   }
 
   public abstract String stageName();
@@ -70,11 +79,44 @@ public abstract class StageInfo {
 
   public abstract CounterSet deltaCounters();
 
+  public abstract CounterSet cumulativeCounters();
+
   public abstract Counter<Long, Long> throttledMsecs();
 
   public abstract Counter<Long, Long> totalProcessingMsecs();
 
-  public abstract Counter<Long, Long> timerProcessingMsecs();
+  public abstract Counter<Long, Long> stateFetches();
+
+  public abstract Counter<Long, CounterFactory.CounterDistribution> stateFetchLatency();
+
+  public abstract Counter<Long, Long> inputWatermarkLag();
+
+  public abstract Counter<Long, Long> outputWatermarkLag();
+
+  private long lastWatermarkUpdate = 0L;
+
+  public void updateWatermarkMetrics(Instant inputDataWatermark, Instant outputDataWatermark) {
+    long nowMillis = DateTimeUtils.currentTimeMillis();
+    long watermarkLag = Math.max(0, nowMillis - inputDataWatermark.getMillis());
+    inputWatermarkLag().getAndReset();
+    inputWatermarkLag().addValue(watermarkLag);
+
+    if (outputDataWatermark != null) {
+      long outputWatermarkLagMillis = Math.max(0, nowMillis - outputDataWatermark.getMillis());
+      outputWatermarkLag().getAndReset();
+      outputWatermarkLag().addValue(outputWatermarkLagMillis);
+    }
+
+    lastWatermarkUpdate = nowMillis;
+  }
+
+  public void resetStaleWatermarkMetrics() {
+    long nowMillis = DateTimeUtils.currentTimeMillis();
+    if (nowMillis - lastWatermarkUpdate > 60_000 * 5) {
+      inputWatermarkLag().getAndReset();
+      outputWatermarkLag().getAndReset();
+    }
+  }
 
   public List<CounterUpdate> extractCounterUpdates() {
     List<CounterUpdate> counterUpdates = new ArrayList<>();
@@ -87,6 +129,8 @@ public abstract class StageInfo {
     }
     counterUpdates.addAll(
         deltaCounters().extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+    counterUpdates.addAll(
+            cumulativeCounters().extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
     return counterUpdates;
   }
 

@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.joda.time.Instant;
 
 /** Value class for a queued commit. */
 @AutoValue
@@ -28,7 +29,7 @@ public abstract class Commit {
   public static Commit create(
       WorkItemCommitRequest request, ComputationState computationState, Work work) {
     Preconditions.checkArgument(request.getSerializedSize() > 0);
-    return new AutoValue_Commit(request, computationState, work);
+    return new AutoValue_Commit(request, computationState, work, Instant.now());
   }
 
   public abstract WorkItemCommitRequest request();
@@ -37,7 +38,13 @@ public abstract class Commit {
 
   public abstract Work work();
 
+  public abstract Instant commitCreateTime();
+
   public final int getSize() {
     return request().getSerializedSize();
+  }
+
+  public Instant getCommitCreateTime() {
+    return commitCreateTime();
   }
 }

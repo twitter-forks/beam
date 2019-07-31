@@ -37,6 +37,8 @@ import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillStateTestUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.counters.CounterName;
+import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
@@ -104,8 +106,19 @@ public class WindmillStateReaderTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
+    CounterSet counterSet = new CounterSet();
     underTest =
-        new WindmillStateReader(mockWindmill, COMPUTATION, DATA_KEY, SHARDING_KEY, WORK_TOKEN);
+        new WindmillStateReader(
+            mockWindmill,
+            COMPUTATION,
+            DATA_KEY,
+            SHARDING_KEY,
+            WORK_TOKEN,
+                () -> null,
+                () -> Boolean.FALSE,
+            counterSet.longSum(CounterName.named("stateFetches")),
+            counterSet.distribution(CounterName.named("itemsPerFetch")),
+            counterSet.distribution(CounterName.named("fetchLatency")));
   }
 
   private Windmill.Value intValue(int value) throws IOException {

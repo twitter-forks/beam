@@ -51,6 +51,9 @@ import javax.management.ReflectionException;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.counters.Counter;
+import org.apache.beam.runners.dataflow.worker.counters.CounterName;
+import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
@@ -215,6 +218,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   private final AtomicInteger numPushbacks = new AtomicInteger(0);
   private final AtomicBoolean jfrRunning = new AtomicBoolean(false);
 
+  private final Counter<Long, Long> numPushbacksCounter;
+  private final Counter<Long, Long> isThrashingGauge;
+
   /** Wait point for threads in pushback waiting for gc thrashing to pass. */
   private final Object waitingForResources = new Object();
 
@@ -234,7 +240,10 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
   private final Clock clock;
 
-  public static MemoryMonitor fromOptions(PipelineOptions options) {
+  public static MemoryMonitor fromOptions(
+      PipelineOptions options,
+      Counter<Long, Long> numPushbacksCounter,
+      Counter<Long, Long> isThrashingGauge) {
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     DataflowWorkerHarnessOptions workerHarnessOptions =
         options.as(DataflowWorkerHarnessOptions.class);
@@ -265,7 +274,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         getLoggingDir(),
         workerId,
         jfrProfileDuration,
-        Clock.systemUTC());
+        Clock.systemUTC(),
+        numPushbacksCounter,
+        isThrashingGauge);
   }
 
   @VisibleForTesting
@@ -280,6 +291,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       String workerId,
       @Nullable Duration jfrProfileDuration,
       Clock clock) {
+    CounterSet noops = new CounterSet();
     return new MemoryMonitor(
         gcStatsProvider,
         sleepTimeMillis,
@@ -290,7 +302,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         localDumpFolder,
         workerId,
         jfrProfileDuration,
-        clock);
+        clock,
+        noops.longSum(CounterName.named("numPushbacks")),
+        noops.longSum(CounterName.named("isThrashing")));
   }
 
   private MemoryMonitor(
@@ -303,7 +317,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       File localDumpFolder,
       String workerId,
       @Nullable Duration jfrProfileDuration,
-      Clock clock) {
+      Clock clock,
+      Counter<Long, Long> numPushbacksCounter,
+      Counter<Long, Long> isThrashingGauge) {
     this.gcStatsProvider = gcStatsProvider;
     this.sleepTimeMillis = sleepTimeMillis;
     this.shutDownAfterNumGCThrashing = shutDownAfterNumGCThrashing;
@@ -321,6 +337,8 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     } else {
       this.jfrInterop = null;
     }
+    this.numPushbacksCounter = numPushbacksCounter;
+    this.isThrashingGauge = isThrashingGauge;
   }
 
   /** For testing only: Wait for the monitor to be running. */
@@ -474,6 +492,9 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   private void setIsThrashing(boolean serverInGcThrashing) {
     synchronized (waitingForResources) {
       synchronized (waitingForStateChange) {
+        isThrashingGauge.getAndReset();
+        isThrashingGauge.addValue(serverInGcThrashing ? 1L : 0L);
+
         boolean prev = isThrashing.getAndSet(serverInGcThrashing);
         if (prev && !serverInGcThrashing) {
           waitingForResources.notifyAll();
@@ -602,7 +623,11 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         updateIsThrashing();
 
         if (lastLog < 0 || lastLog + NORMAL_LOGGING_PERIOD_MILLIS < now) {
-          LOG.info("Memory is {}", describeMemory());
+          if (isThrashing.get()) {
+            LOG.info("Memory is {}", describeMemory());
+          } else {
+            LOG.debug("Memory is {}", describeMemory());
+          }
           lastLog = now;
         }
 
@@ -638,6 +663,8 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       return;
     }
     numPushbacks.incrementAndGet();
+    numPushbacksCounter.addValue(1L);
+
     LOG.info("Waiting for resources for {}. Memory is {}", context, describeMemory());
     synchronized (waitingForResources) {
       boolean interrupted = false;

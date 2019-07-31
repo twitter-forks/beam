@@ -167,6 +167,26 @@ public interface DataflowPipelineDebugOptions
 
   void setWindmillServicePort(int value);
 
+  @Default.Integer(1)
+  int getNumCommitStreams();
+
+  void setNumCommitStreams(int value);
+
+  @Default.Integer(1)
+  int getNumGetDataStreams();
+
+  void setNumGetDataStreams(int value);
+
+  @Default.Integer(10)
+  int getNumGetDataThreads();
+
+  void setNumGetDataThreads(int value);
+
+  @Default.Integer(1)
+  int getNumDispatchThreads();
+
+  void setNumDispatchThreads(int value);
+
   /**
    * Number of threads to use on the Dataflow worker harness. If left unspecified, the Dataflow
    * service will compute an appropriate number of threads to use.
