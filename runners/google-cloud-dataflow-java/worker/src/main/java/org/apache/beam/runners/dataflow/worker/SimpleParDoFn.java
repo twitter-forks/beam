@@ -52,8 +52,10 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -81,7 +83,10 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   @VisibleForTesting
   static final String OUTPUTS_PER_ELEMENT_EXPERIMENT = "outputs_per_element_counter";
 
+  private static final int MAX_CLEANUP_JITTER_MS = 180_000;
+  private static final double WINDOW_JITTER_PCT = .025D;
   private static final String COUNTER_NAME = "per-element-output-count";
+  private static final String CLEANUP_COUNTER_NAME = "keys-cleaned";
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleParDoFn.class);
 
@@ -101,6 +106,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private final OutputsPerElementTracker outputsPerElementTracker;
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<String, PCollectionView<?>> sideInputMapping;
+  private final Counter<Long, Long> cleanupCounter;
 
   // Various DoFn helpers, null between bundles
   private @Nullable DoFnRunner<InputT, OutputT> fnRunner;
@@ -153,6 +159,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     this.outputsPerElementTracker = createOutputsPerElementTracker();
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
+    this.cleanupCounter =
+        counterFactory.longSum(
+            CounterName.named(CLEANUP_COUNTER_NAME).withOriginalName(stepContext.getNameContext()));
   }
 
   private OutputsPerElementTracker createOutputsPerElementTracker() {
@@ -317,6 +326,18 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     fnRunner.startBundle();
   }
 
+  private int getMaxCleanupJitterMs(BoundedWindow window, Duration allowedLateness) {
+    if (!(window instanceof IntervalWindow)) {
+      return 0;
+    }
+
+    IntervalWindow intervalWindow = (IntervalWindow) window;
+    Duration windowDuration =
+        new Duration(intervalWindow.start(), intervalWindow.end()).plus(allowedLateness);
+
+    return (int) Math.min(windowDuration.getMillis() * WINDOW_JITTER_PCT, MAX_CLEANUP_JITTER_MS);
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public void processElement(Object untypedElem) throws Exception {
@@ -331,9 +352,22 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
 
     if (fnSignature != null && fnSignature.stateDeclarations().size() > 0) {
+      double keyHashRatio = 0;
+      if (elem.getValue() instanceof KV<?, ?>) {
+        int keyHash = ((KV<?, ?>) elem.getValue()).getKey().hashCode();
+        // mix the hash in case the key has a "bad" hash function (eg Integer just returns itself).
+        int mixedHash = 0x1b873593 * Integer.rotateLeft(keyHash * 0xcc9e2d51, 15);
+        if (mixedHash == Integer.MIN_VALUE) {
+          keyHashRatio = 1;
+        } else {
+          keyHashRatio = ((double) Math.abs(mixedHash)) / Integer.MAX_VALUE;
+        }
+      }
+
       registerStateCleanup(
           (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
-          (Collection<BoundedWindow>) elem.getWindows());
+          (Collection<BoundedWindow>) elem.getWindows(),
+          keyHashRatio);
     }
 
     outputsPerElementTracker.onProcessElement();
@@ -378,6 +412,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
     // Timer owned by this class, for cleaning up state in expired windows
     if (timer.getTimerId().equals(CLEANUP_TIMER_ID)) {
+      cleanupCounter.addValue(1L);
+
       checkState(
           timer.getDomain().equals(TimeDomain.EVENT_TIME),
           "%s received cleanup timer with domain not EVENT_TIME: %s",
@@ -486,7 +522,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private <W extends BoundedWindow> void registerStateCleanup(
-      WindowingStrategy<?, W> windowingStrategy, Collection<W> windowsToCleanup) {
+      WindowingStrategy<?, W> windowingStrategy,
+      Collection<W> windowsToCleanup,
+      double keyHashRatio) {
     Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
     for (W window : windowsToCleanup) {
@@ -501,15 +539,22 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       // window.
       if (cleanupTime.isBefore(GlobalWindow.INSTANCE.maxTimestamp())
           || fnSignature.onWindowExpiration() != null) {
+
+        int jitterMs =
+            (int)
+                (keyHashRatio
+                    * getMaxCleanupJitterMs(window, windowingStrategy.getAllowedLateness()));
+
         // If the DoFn has OnWindowExpiration, then set the watermark hold so that the watermark
         // does
         // not advance until OnWindowExpiration completes.
+        Instant jitteredCleanupTime = cleanupTime.plus(Duration.millis(jitterMs));
         Instant cleanupOutputTimestamp =
             fnSignature.onWindowExpiration() == null
                 ? cleanupTime
                 : cleanupTime.minus(Duration.millis(1L));
         stepContext.setStateCleanupTimer(
-            CLEANUP_TIMER_ID, window, windowCoder, cleanupTime, cleanupOutputTimestamp);
+            CLEANUP_TIMER_ID, window, windowCoder, jitteredCleanupTime, cleanupOutputTimestamp);
       }
     }
   }

@@ -129,7 +129,7 @@ public class WindmillStateCache implements StatusDataProvider {
   public CacheStats getCacheStats() {
     return stateCache.stats();
   }
-  
+
   public long getEvictionCount() {
     return stateCache.stats().evictionCount();
   }
