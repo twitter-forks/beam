@@ -785,7 +785,10 @@ public class CounterFactory {
 
     private final Recorder histogram = new Recorder(2);
 
+    @SuppressWarnings("unused")
     private volatile long sumValue = 0;
+
+    @SuppressWarnings("unused")
     private volatile long sumOfSquares = 0;
 
     @Override
