@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -76,6 +77,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   static final String OUTPUTS_PER_ELEMENT_EXPERIMENT = "outputs_per_element_counter";
 
   private static final String COUNTER_NAME = "per-element-output-count";
+  private static final String CLEANUP_COUNTER_NAME = "keys-cleaned";
 
   private static final Logger LOG = LoggerFactory.getLogger(SimpleParDoFn.class);
 
@@ -95,6 +97,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private final OutputsPerElementTracker outputsPerElementTracker;
   private final DoFnSchemaInformation doFnSchemaInformation;
   private final Map<String, PCollectionView<?>> sideInputMapping;
+  private final Counter<Long, Long> cleanupCounter;
 
   // Various DoFn helpers, null between bundles
   @Nullable private DoFnRunner<InputT, OutputT> fnRunner;
@@ -147,6 +150,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     this.outputsPerElementTracker = createOutputsPerElementTracker();
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
+    this.cleanupCounter =
+        counterFactory.longSum(
+            CounterName.named(CLEANUP_COUNTER_NAME).withOriginalName(stepContext.getNameContext()));
   }
 
   private OutputsPerElementTracker createOutputsPerElementTracker() {
@@ -326,9 +332,18 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
 
     if (fnSignature != null && fnSignature.stateDeclarations().size() > 0) {
+      int jitterMs = 0;
+      if (elem.getValue() instanceof KV<?, ?>) {
+        int keyHash = ((KV<?, ?>) elem.getValue()).getKey().hashCode();
+        // mix the hash in case the key has a "bad" hash function (eg Integer just returns itself).
+        int mixedHash = 0x1b873593 * Integer.rotateLeft(keyHash * 0xcc9e2d51, 15);
+        jitterMs = Math.abs(mixedHash % 180) * 1000;
+      }
+
       registerStateCleanup(
           (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
-          (Collection<BoundedWindow>) elem.getWindows());
+          (Collection<BoundedWindow>) elem.getWindows(),
+          jitterMs);
     }
 
     outputsPerElementTracker.onProcessElement();
@@ -373,6 +388,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
     // Timer owned by this class, for cleaning up state in expired windows
     if (timer.getTimerId().equals(CLEANUP_TIMER_ID)) {
+      cleanupCounter.addValue(1L);
+
       checkState(
           timer.getDomain().equals(TimeDomain.EVENT_TIME),
           "%s received cleanup timer with domain not EVENT_TIME: %s",
@@ -481,7 +498,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private <W extends BoundedWindow> void registerStateCleanup(
-      WindowingStrategy<?, W> windowingStrategy, Collection<W> windowsToCleanup) {
+      WindowingStrategy<?, W> windowingStrategy, Collection<W> windowsToCleanup, int jitterMs) {
     Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
     for (W window : windowsToCleanup) {
@@ -489,7 +506,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       // whether state needs to be cleaned up or will simply be discarded so the
       // timer can be ignored
 
-      Instant cleanupTime = earliestAllowableCleanupTime(window, windowingStrategy);
+      Instant cleanupTime = earliestAllowableCleanupTime(window, windowingStrategy).plus(jitterMs);
       // if DoFn has OnWindowExpiration then set holds for system timer.
       Instant cleanupOutputTimestamp =
           fnSignature.onWindowExpiration() == null ? cleanupTime : cleanupTime.minus(1L);
