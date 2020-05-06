@@ -41,6 +41,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.dataflow.WorkerMetricsReceiver;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor;
@@ -49,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.DynamicSplitResult;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -69,6 +71,7 @@ public class WorkItemStatusClient {
   private final WorkUnitClient workUnitClient;
   private @Nullable DataflowWorkExecutor worker;
   private Long nextReportIndex;
+  private final Iterable<WorkerMetricsReceiver> workerMetricReceivers;
 
   private transient String uniqueWorkId = null;
   private boolean finalStateSent = false;
@@ -88,6 +91,7 @@ public class WorkItemStatusClient {
     this.workItem = workItem;
     this.nextReportIndex =
         checkNotNull(workItem.getInitialReportIndex(), "WorkItem missing initial report index");
+    this.workerMetricReceivers = ReflectHelpers.loadServicesOrdered(WorkerMetricsReceiver.class);
   }
 
   public String uniqueWorkId() {
@@ -299,6 +303,9 @@ public class WorkItemStatusClient {
     // MSec counters reported in worker
     extractMsecCounters(isFinalUpdate).forEach(appendCounterUpdate);
 
+    // Extract memory metrics in worker
+    extractMemoryCounters().forEach(appendCounterUpdate);
+
     // Metrics reported in SDK runner.
     // This includes all different kinds of metrics coming from SDK.
     // Keep in mind that these metrics might contain different types of counter names:
@@ -306,6 +313,17 @@ public class WorkItemStatusClient {
     worker.extractMetricUpdates().forEach(appendCounterUpdate);
 
     status.setCounterUpdates(ImmutableList.copyOf(counterUpdatesMap.values()));
+    publishCounterUpdates(ImmutableList.copyOf(counterUpdatesMap.values()));
+  }
+
+  private void publishCounterUpdates(List<CounterUpdate> updates) {
+    try {
+      for (WorkerMetricsReceiver receiver : workerMetricReceivers) {
+        receiver.receiverCounterUpdates(updates);
+      }
+    } catch (Exception e) {
+      LOG.error("Error publishing counter updates", e);
+    }
   }
 
   private synchronized Iterable<CounterUpdate> extractCounters(@Nullable CounterSet counters) {
@@ -338,6 +356,12 @@ public class WorkItemStatusClient {
     return executionContext == null
         ? Collections.emptyList()
         : executionContext.extractMsecCounters(isFinalUpdate);
+  }
+
+  public Iterable<CounterUpdate> extractMemoryCounters() {
+    return executionContext == null
+        ? Collections.emptyList()
+        : executionContext.extractMemoryCounters();
   }
 
   public long extractThrottleTime() {

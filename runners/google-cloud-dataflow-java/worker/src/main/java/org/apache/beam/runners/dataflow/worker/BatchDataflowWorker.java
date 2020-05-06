@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.*;
+
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.Closeable;
@@ -31,6 +33,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.SdkHarnessRegistry.SdkWorkerHarness;
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
+import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.graph.CloneAmbiguousFlattensFunction;
@@ -145,8 +148,14 @@ public class BatchDataflowWorker implements Closeable {
   private final SdkHarnessRegistry sdkHarnessRegistry;
   private final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork;
 
+  private final CounterSet memoryCounter;
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
+
+  private static final CounterName BATCH_WORK_ITEM_SUCCESS_COUNTER_NAME =
+      CounterName.named("work_item_success");
+  private static final CounterName BATCH_WORK_ITEM_FAILURE_COUNTER_NAME =
+      CounterName.named("work_item_failure");
 
   /**
    * Returns a {@link BatchDataflowWorker} configured to execute user functions via intrinsic Java
@@ -210,11 +219,12 @@ public class BatchDataflowWorker implements Closeable {
             .concurrencyLevel(CACHE_CONCURRENCY_LEVEL)
             .build();
 
-    CounterSet noop = new CounterSet();
-    this.memoryMonitor = MemoryMonitor.fromOptions(
-        options,
-        noop.longSum(CounterName.named("numPushbacks")),
-        noop.longSum(CounterName.named("isThrashing")));
+    this.memoryCounter = new CounterSet();
+    this.memoryMonitor =
+        MemoryMonitor.fromOptions(
+            options,
+            memoryCounter.longSum(MEMORY_MONITOR_NUM_PUSHBACKS.counterName()),
+            memoryCounter.longSum(MEMORY_MONITOR_IS_THRASHING.counterName()));
     this.statusPages =
         WorkerStatusPages.create(
             DEFAULT_STATUS_PORT, memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
@@ -329,6 +339,11 @@ public class BatchDataflowWorker implements Closeable {
 
     DataflowWorkExecutor worker = null;
     SdkWorkerHarness sdkWorkerHarness = sdkHarnessRegistry.getAvailableWorkerAndAssignWork();
+    CounterSet counterSet = new CounterSet();
+    Counter<Long, Long> workItemsReceived = counterSet.longSum(WORK_ITEMS_RECEIVED.counterName());
+    Counter<Long, Long> workItemSuccess = counterSet.longSum(BATCH_WORK_ITEM_SUCCESS_COUNTER_NAME);
+    Counter<Long, Long> workItemFailure = counterSet.longSum(BATCH_WORK_ITEM_FAILURE_COUNTER_NAME);
+
     try {
       // Populate PipelineOptions with data from work unit.
       options.setProject(workItem.getProjectId());
@@ -342,10 +357,10 @@ public class BatchDataflowWorker implements Closeable {
         throw new RuntimeException("Unknown kind of work item: " + workItem.toString());
       }
 
-      CounterSet counterSet = new CounterSet();
       BatchModeExecutionContext executionContext =
           BatchModeExecutionContext.create(
               counterSet,
+              this.memoryCounter,
               sideInputDataCache,
               sideInputWeakReferenceCache,
               readerRegistry,
@@ -388,11 +403,15 @@ public class BatchDataflowWorker implements Closeable {
 
       DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker);
+
+      workItemsReceived.addValue(1L);
       executeWork(worker, progressUpdater);
+      workItemSuccess.addValue(1L);
       workItemStatusClient.reportSuccess();
       return true;
 
     } catch (Throwable e) {
+      workItemFailure.addValue(1L);
       workItemStatusClient.reportError(e);
       return false;
 
