@@ -207,6 +207,20 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setNumberOfWorkerHarnessThreads(int value);
 
   /**
+   * Size (in MB) of each grouping table used to pre-combine elements.
+   * If unset, defaults to 100 MB.
+   *
+   * <p>CAUTION: If set too large, workers may run into OOM conditions more easily, each worker may
+   * have many grouping tables in-memory concurrently.
+   */
+  @Description("The size (in MB) of the grouping tables used to pre-combine elements before " +
+      "shuffling.  Larger values may reduce the amount of data shuffled.")
+  @Default.Long(100)
+  Long getGroupingTableMaxSizeMb();
+
+  void setGroupingTableMaxSizeMb(Long value);
+
+  /**
    * If {@literal true}, save a heap dump before killing a thread or process which is GC thrashing
    * or out of memory. The location of the heap file will either be echoed back to the user, or the
    * user will be given the opportunity to download the heap file.

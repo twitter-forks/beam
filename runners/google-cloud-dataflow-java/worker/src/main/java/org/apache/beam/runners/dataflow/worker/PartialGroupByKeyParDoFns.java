@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.GlobalCombineFnRunners;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.GroupingTable;
@@ -97,6 +98,9 @@ public class PartialGroupByKeyParDoFns {
       Receiver receiver,
       @Nullable StepContext stepContext)
       throws Exception {
+    long maxSizeBytes = options.as(DataflowPipelineDebugOptions.class)
+        .getGroupingTableMaxSizeMb() * (1024L * 1024L);
+
     Coder<K> keyCoder = inputElementCoder.getKeyCoder();
     Coder<?> valueCoder = inputElementCoder.getValueCoder();
     if (combineFn == null) {
@@ -108,7 +112,8 @@ public class PartialGroupByKeyParDoFns {
               PairInfo.create(),
               new CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
               new CoderSizeEstimator<>(inputCoder),
-              0.001 /*sizeEstimatorSampleRate*/);
+              0.001, /*sizeEstimatorSampleRate*/
+              maxSizeBytes /*maxSizeBytes*/);
       return new SimplePartialGroupByKeyParDoFn<>(groupingTable, receiver);
     } else {
       GroupingTables.Combiner<WindowedValue<K>, InputT, AccumT, ?> valueCombiner =
@@ -122,7 +127,8 @@ public class PartialGroupByKeyParDoFns {
               valueCombiner,
               new CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
               new CoderSizeEstimator<>(combineFn.getAccumulatorCoder()),
-              0.001 /*sizeEstimatorSampleRate*/);
+              0.001, /*sizeEstimatorSampleRate*/
+              maxSizeBytes /*maxSizeBytes*/);
       if (sideInputReader.isEmpty()) {
         return new SimplePartialGroupByKeyParDoFn<>(groupingTable, receiver);
       } else if (options.as(StreamingOptions.class).isStreaming()) {
