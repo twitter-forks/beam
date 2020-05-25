@@ -322,10 +322,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.25.0'
-    if (!isRelease(project)) {
-      project.version += '-SNAPSHOT'
-    }
+    project.version = '2.25.0.twttr2'
 
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
@@ -392,7 +389,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.10"
-    def google_cloud_bigdataoss_version = "2.1.5"
+    def google_cloud_bigdataoss_version = "2.1.3"
     def google_cloud_core_version = "1.93.7"
     def google_cloud_pubsublite_version = "0.1.6"
     def google_cloud_spanner_version = "1.59.0"
