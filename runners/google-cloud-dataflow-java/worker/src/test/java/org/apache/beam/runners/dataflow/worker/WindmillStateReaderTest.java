@@ -24,7 +24,6 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.concurrent.Future;
-
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -75,7 +74,8 @@ public class WindmillStateReaderTest {
 
     CounterSet counterSet = new CounterSet();
     underTest =
-        new WindmillStateReader(mockWindmill,
+        new WindmillStateReader(
+            mockWindmill,
             COMPUTATION,
             DATA_KEY,
             SHARDING_KEY,

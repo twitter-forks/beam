@@ -186,9 +186,7 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
 
   void setNumDispatchThreads(int value);
 
-  /**
-   * The size of the worker's in-memory cache, in megabytes.
-   */
+  /** The size of the worker's in-memory cache, in megabytes. */
   @Description("The size of the worker's in-memory cache, in megabytes.")
   @Default.Integer(100)
   Integer getWorkerCacheMb();
@@ -207,14 +205,14 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setNumberOfWorkerHarnessThreads(int value);
 
   /**
-   * Size (in MB) of each grouping table used to pre-combine elements.
-   * If unset, defaults to 100 MB.
+   * Size (in MB) of each grouping table used to pre-combine elements. If unset, defaults to 100 MB.
    *
    * <p>CAUTION: If set too large, workers may run into OOM conditions more easily, each worker may
    * have many grouping tables in-memory concurrently.
    */
-  @Description("The size (in MB) of the grouping tables used to pre-combine elements before " +
-      "shuffling.  Larger values may reduce the amount of data shuffled.")
+  @Description(
+      "The size (in MB) of the grouping tables used to pre-combine elements before "
+          + "shuffling.  Larger values may reduce the amount of data shuffled.")
   @Default.Long(100)
   Long getGroupingTableMaxSizeMb();
 

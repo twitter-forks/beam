@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.counters;
 
+import com.google.auto.value.AutoValue;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,16 +27,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.auto.value.AutoValue;
-
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramIterationValue;
 import org.HdrHistogram.Recorder;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.AtomicDouble;
@@ -776,10 +773,10 @@ public class CounterFactory {
 
   /** Implements a {@link Counter} for tracking a distribution of long values. */
   public static class DistributionCounterValue extends BaseCounterValue<Long, CounterDistribution> {
-    private final static AtomicLongFieldUpdater<DistributionCounterValue> SUM_UPDATER =
+    private static final AtomicLongFieldUpdater<DistributionCounterValue> SUM_UPDATER =
         AtomicLongFieldUpdater.newUpdater(DistributionCounterValue.class, "sumValue");
 
-    private final static AtomicLongFieldUpdater<DistributionCounterValue> SUM_OF_SQUARES_UPDATER =
+    private static final AtomicLongFieldUpdater<DistributionCounterValue> SUM_OF_SQUARES_UPDATER =
         AtomicLongFieldUpdater.newUpdater(DistributionCounterValue.class, "sumOfSquares");
 
     private final Recorder histogram = new Recorder(2);
@@ -794,16 +791,15 @@ public class CounterFactory {
       SUM_OF_SQUARES_UPDATER.addAndGet(this, (long) Math.pow(value, 2));
     }
 
-    private static CounterDistribution toCounterDistribution(Histogram v, long sum, double sumOfSquares) {
-      if (v.getTotalCount() == 0)
-        return CounterDistribution.EMPTY;
+    private static CounterDistribution toCounterDistribution(
+        Histogram v, long sum, double sumOfSquares) {
+      if (v.getTotalCount() == 0) return CounterDistribution.EMPTY;
 
       List<Long> buckets = new ArrayList<>();
       int firstBucket = -1;
       for (HistogramIterationValue r : v.recordedValues()) {
         int bucket = CounterDistribution.calculateBucket(r.getValueIteratedTo());
-        if (firstBucket == -1)
-          firstBucket = bucket;
+        if (firstBucket == -1) firstBucket = bucket;
 
         if (bucket >= buckets.size()) {
           for (int i = buckets.size(); i <= bucket; i++) {
@@ -819,8 +815,7 @@ public class CounterFactory {
         buckets = buckets.subList(firstBucket, buckets.size());
       }
 
-      return CounterDistribution
-          .builder()
+      return CounterDistribution.builder()
           .min(v.getMinValue())
           .max(v.getMaxValue())
           .count(v.getTotalCount())

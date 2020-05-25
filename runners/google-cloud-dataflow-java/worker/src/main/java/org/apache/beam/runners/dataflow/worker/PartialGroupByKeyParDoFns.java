@@ -98,8 +98,9 @@ public class PartialGroupByKeyParDoFns {
       Receiver receiver,
       @Nullable StepContext stepContext)
       throws Exception {
-    long maxSizeBytes = options.as(DataflowPipelineDebugOptions.class)
-        .getGroupingTableMaxSizeMb() * (1024L * 1024L);
+    long maxSizeBytes =
+        options.as(DataflowPipelineDebugOptions.class).getGroupingTableMaxSizeMb()
+            * (1024L * 1024L);
 
     Coder<K> keyCoder = inputElementCoder.getKeyCoder();
     Coder<?> valueCoder = inputElementCoder.getValueCoder();

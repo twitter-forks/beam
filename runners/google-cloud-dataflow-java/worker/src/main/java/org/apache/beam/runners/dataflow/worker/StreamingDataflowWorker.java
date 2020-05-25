@@ -521,7 +521,8 @@ public class StreamingDataflowWorker {
     final Counter<Long, Long> stateFetches;
     final Counter<Long, CounterFactory.CounterDistribution> stateFetchLatency;
 
-    StageInfo(String stageName, String systemName, String userName, StreamingDataflowWorker worker) {
+    StageInfo(
+        String stageName, String systemName, String userName, StreamingDataflowWorker worker) {
       this.stageName = stageName;
       this.systemName = systemName;
       metricsContainerRegistry = StreamingStepMetricsContainer.createRegistry();
@@ -625,12 +626,13 @@ public class StreamingDataflowWorker {
     this.sdkHarnessRegistry = sdkHarnessRegistry;
     this.hotKeyLogger = hotKeyLogger;
     this.windmillServiceEnabled = options.isEnableStreamingEngine();
-    this.memoryMonitor = MemoryMonitor.fromOptions(
-        options,
-        this.pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.MEMORY_MONITOR_NUM_PUSHBACKS.counterName()),
-        this.pendingCumulativeCounters.longSum(
-            StreamingSystemCounterNames.MEMORY_MONITOR_IS_THRASHING.counterName()));
+    this.memoryMonitor =
+        MemoryMonitor.fromOptions(
+            options,
+            this.pendingDeltaCounters.longSum(
+                StreamingSystemCounterNames.MEMORY_MONITOR_NUM_PUSHBACKS.counterName()),
+            this.pendingCumulativeCounters.longSum(
+                StreamingSystemCounterNames.MEMORY_MONITOR_IS_THRASHING.counterName()));
     this.statusPages =
         WorkerStatusPages.create(
             DEFAULT_STATUS_PORT, memoryMonitor, sdkHarnessRegistry::sdkHarnessesAreHealthy);
@@ -689,7 +691,8 @@ public class StreamingDataflowWorker {
             StreamingSystemCounterNames.STATE_CACHE_INVALIDATE_REQUESTS.counterName());
     this.stateCacheInvalidatesFromInconsistentToken =
         pendingCumulativeCounters.longSum(
-            StreamingSystemCounterNames.STATE_CACHE_INVALIDATES_FROM_INCONSISTENT_TOKEN.counterName());
+            StreamingSystemCounterNames.STATE_CACHE_INVALIDATES_FROM_INCONSISTENT_TOKEN
+                .counterName());
     this.stateCacheStaleWorkTokenMisses =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.STATE_CACHE_STALE_WORK_TOKEN_MISSES.counterName());
@@ -700,8 +703,7 @@ public class StreamingDataflowWorker {
         pendingDeltaCounters.distribution(
             StreamingSystemCounterNames.COMMIT_SIZE_BYTES_PER_COMMIT.counterName());
     this.commitSizeBytes =
-        pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.COMMIT_SIZE_BYTES.counterName());
+        pendingDeltaCounters.longSum(StreamingSystemCounterNames.COMMIT_SIZE_BYTES.counterName());
     this.currentCommitSizeBytes =
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.CURRENT_COMMIT_SIZE_BYTES.counterName());
@@ -709,8 +711,7 @@ public class StreamingDataflowWorker {
         pendingDeltaCounters.longSum(
             StreamingSystemCounterNames.GET_WORK_ITEM_BATCHES_RECEIVED.counterName());
     this.workItemsReceived =
-        pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WORK_ITEMS_RECEIVED.counterName());
+        pendingDeltaCounters.longSum(StreamingSystemCounterNames.WORK_ITEMS_RECEIVED.counterName());
     this.computationWorkItemsReceived =
         pendingDeltaCounters.longSum(
             StreamingSystemCounterNames.COMPUTATION_WORK_ITEMS_RECEIVED.counterName());
@@ -731,17 +732,18 @@ public class StreamingDataflowWorker {
           return t;
         };
 
-    ThreadFactory dispatchThreadFactory = new ThreadFactory() {
-      private final AtomicInteger threadId = new AtomicInteger();
+    ThreadFactory dispatchThreadFactory =
+        new ThreadFactory() {
+          private final AtomicInteger threadId = new AtomicInteger();
 
-      @Override
-      public Thread newThread(Runnable r) {
-        Thread t = new Thread(r);
-        t.setName("DispatchExecutor-" + threadId.incrementAndGet());
-        t.setDaemon(true);
-        return t;
-      }
-    };
+          @Override
+          public Thread newThread(Runnable r) {
+            Thread t = new Thread(r);
+            t.setName("DispatchExecutor-" + threadId.incrementAndGet());
+            t.setDaemon(true);
+            return t;
+          }
+        };
 
     this.workUnitExecutor =
         new BoundedQueueExecutor(
@@ -752,11 +754,7 @@ public class StreamingDataflowWorker {
             threadFactory);
     this.dispatchExecutor =
         new BoundedQueueExecutor(
-            1,
-            THREAD_EXPIRATION_TIME_SEC,
-            TimeUnit.SECONDS,
-            3,
-            dispatchThreadFactory);
+            1, THREAD_EXPIRATION_TIME_SEC, TimeUnit.SECONDS, 3, dispatchThreadFactory);
     maxSinkBytes =
         hasExperiment(options, "disable_limiting_bundle_sink_bytes")
             ? Long.MAX_VALUE
@@ -784,7 +782,7 @@ public class StreamingDataflowWorker {
                   LOG.info("Dispatch done");
                 }
               });
-      //dispatchThread.setPriority(Thread.MIN_PRIORITY);
+      // dispatchThread.setPriority(Thread.MIN_PRIORITY);
       dispatchThread.setName("DispatchThread-" + t);
       dispatchThreads[t] = dispatchThread;
     }
@@ -798,17 +796,18 @@ public class StreamingDataflowWorker {
 
     commitThreads = new Thread[numCommitThreads];
     for (int i = 0; i < numCommitThreads; i++) {
-      Thread t = threadFactory.newThread(
-          new Runnable() {
-            @Override
-            public void run() {
-              if (windmillServiceEnabled) {
-                streamingCommitLoop(options.getNumCommitStreams());
-              } else {
-                commitLoop();
-              }
-            }
-          });
+      Thread t =
+          threadFactory.newThread(
+              new Runnable() {
+                @Override
+                public void run() {
+                  if (windmillServiceEnabled) {
+                    streamingCommitLoop(options.getNumCommitStreams());
+                  } else {
+                    commitLoop();
+                  }
+                }
+              });
       t.setPriority(Thread.MAX_PRIORITY);
       t.setName("CommitThread-" + i);
       commitThreads[i] = t;
@@ -1184,7 +1183,8 @@ public class StreamingDataflowWorker {
         final Instant inputDataWatermark =
             WindmillTimeUtils.windmillToHarnessWatermark(computationWork.getInputDataWatermark());
         Preconditions.checkNotNull(inputDataWatermark);
-        @Nullable final Instant synchronizedProcessingTime =
+        @Nullable
+        final Instant synchronizedProcessingTime =
             WindmillTimeUtils.windmillToHarnessWatermark(
                 computationWork.getDependentRealtimeInputWatermark());
 
@@ -1210,13 +1210,9 @@ public class StreamingDataflowWorker {
                   @Nullable Instant inputDataWatermark,
                   Instant synchronizedProcessingTime,
                   Windmill.WorkItem workItem) -> {
-
-                DispatchStreamingWorkRunnable r = new DispatchStreamingWorkRunnable(
-                    computation,
-                    inputDataWatermark,
-                    synchronizedProcessingTime,
-                    workItem
-                );
+                DispatchStreamingWorkRunnable r =
+                    new DispatchStreamingWorkRunnable(
+                        computation, inputDataWatermark, synchronizedProcessingTime, workItem);
                 dispatchExecutor.execute(r);
               });
       try {
@@ -1242,8 +1238,7 @@ public class StreamingDataflowWorker {
         String computation,
         @Nullable Instant inputDataWatermark,
         Instant synchronizedProcessingTime,
-        Windmill.WorkItem workItem
-    ) {
+        Windmill.WorkItem workItem) {
       this.computation = computation;
       this.inputDataWatermark = inputDataWatermark;
       this.synchronizedProcessingTime = synchronizedProcessingTime;
@@ -1444,7 +1439,8 @@ public class StreamingDataflowWorker {
 
     StageInfo stageInfo =
         stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), s -> {
+            mapTask.getStageName(),
+            s -> {
               String userName = null;
               if (mapTask.getInstructions() != null) {
                 ParallelInstruction firstInstruction =
@@ -1454,7 +1450,7 @@ public class StreamingDataflowWorker {
                   userName = firstInstruction.getName();
                 }
               }
-              return new StageInfo(s, mapTask.getSystemName(), userName,this);
+              return new StageInfo(s, mapTask.getSystemName(), userName, this);
             });
 
     ExecutionState executionState = null;
@@ -1800,8 +1796,7 @@ public class StreamingDataflowWorker {
             stateCache.forComputation(state.computationId).invalidate(request.getKey());
           }
           activeCommitBytes.addAndGet(-size);
-          commitDurationMs.addValue(
-              Instant.now().getMillis() - commitCreateTime.getMillis());
+          commitDurationMs.addValue(Instant.now().getMillis() - commitCreateTime.getMillis());
           // This may throw an exception if the commit was not active, which is possible if it
           // was deemed stuck.
           state.completeWork(request.getKey(), request.getWorkToken());
@@ -1841,8 +1836,7 @@ public class StreamingDataflowWorker {
 
   private void streamingCommitLoop(int numCommitStreams) {
     StreamPool<CommitWorkStream> streamPool =
-        new StreamPool<>(
-            numCommitStreams, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream);
+        new StreamPool<>(numCommitStreams, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream);
     Commit initialCommit = null;
     while (running.get()) {
       if (initialCommit == null) {
@@ -2211,7 +2205,8 @@ public class StreamingDataflowWorker {
     stateCacheInvalidateRequests.addValue(stateCache.getInvalidateRequests());
 
     stateCacheInvalidatesFromInconsistentToken.getAndReset();
-    stateCacheInvalidatesFromInconsistentToken.addValue(stateCache.getInvalidatesFromInconsistentToken());
+    stateCacheInvalidatesFromInconsistentToken.addValue(
+        stateCache.getInvalidatesFromInconsistentToken());
   }
 
   /** Sends counter updates to Dataflow backend. */

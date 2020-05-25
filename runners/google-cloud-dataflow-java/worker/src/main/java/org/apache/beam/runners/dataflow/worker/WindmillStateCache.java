@@ -105,7 +105,9 @@ public class WindmillStateCache implements StatusDataProvider {
             .build();
   }
 
-  public long getSize() { return stateCache.size(); }
+  public long getSize() {
+    return stateCache.size();
+  }
 
   public long getWeight() {
     return displayedWeight;

@@ -49,7 +49,8 @@ public class DataflowSystemMetrics {
     STATE_CACHE_HIT_RATE("state_cache_hit_rate"),
     STATE_CACHE_EVICTIONS("state_cache_evictions"),
     STATE_CACHE_INVALIDATE_REQUESTS("state_cache_invalidate_requests"),
-    STATE_CACHE_INVALIDATES_FROM_INCONSISTENT_TOKEN("state_cache_invalidates_from_inconsistent_token"),
+    STATE_CACHE_INVALIDATES_FROM_INCONSISTENT_TOKEN(
+        "state_cache_invalidates_from_inconsistent_token"),
     STATE_CACHE_STALE_WORK_TOKEN_MISSES("state_cache_stale_work_token_misses"),
     COMMIT_DURATION_MS("commit_duration_ms"),
     COMMIT_SIZE_BYTES_PER_COMMIT("commit_size_bytes_per_commit"),
@@ -101,8 +102,7 @@ public class DataflowSystemMetrics {
 
     STATE_FETCHES("state_fetches_per_stage"),
 
-    STATE_FETCH_LATENCY("state_fetch_latency_per_stage")
-    ;
+    STATE_FETCH_LATENCY("state_fetch_latency_per_stage");
 
     private final String namePrefix;
 

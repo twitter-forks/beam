@@ -345,6 +345,7 @@ class WindmillStateInternals<K> implements StateInternals {
     private boolean modified = false;
     /** Whether the in memory value is the true value. */
     private boolean valueIsKnown = false;
+
     private long cachedSize = -1;
 
     private T value;
