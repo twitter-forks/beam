@@ -259,4 +259,19 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
           .build();
     }
   }
+
+  /**
+   * [EXPERIMENTAL] Set to false to disable automatic state cleanup timers for
+   * Stateful DoFns.  This reduces overhead and extra timers if the DoFn already sets
+   * timers in which all state is cleaned up manually.
+   */
+  @Description(
+      "[EXPERIMENTAL] Set to false to disable automatic state cleanup timers for "
+          + "Stateful DoFns.  This reduces overhead and extra timers if the DoFn already sets "
+          + "timers in which all state is cleaned up manually.")
+  @Default.Boolean(true)
+  @Experimental
+  Boolean getUseStatefulDoFnCleanupTimers();
+
+  void setUseStatefulDoFnCleanupTimers(Boolean value);
 }

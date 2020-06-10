@@ -331,7 +331,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
 
-    if (fnSignature != null && fnSignature.stateDeclarations().size() > 0) {
+    if (fnSignature != null && fnSignature.stateDeclarations().size() > 0 &&
+        options.as(DataflowPipelineDebugOptions.class).getUseStatefulDoFnCleanupTimers()) {
       int jitterMs = 0;
       if (elem.getValue() instanceof KV<?, ?>) {
         int keyHash = ((KV<?, ?>) elem.getValue()).getKey().hashCode();
