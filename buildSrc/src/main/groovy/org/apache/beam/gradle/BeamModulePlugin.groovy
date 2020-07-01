@@ -1166,13 +1166,10 @@ class BeamModulePlugin implements Plugin<Project> {
             mavenJava(MavenPublication) {
               if (configuration.shadowClosure) {
                 artifact project.shadowJar
-                artifact project.shadowTestJar
               } else {
                 artifact project.jar
-                artifact project.testJar
               }
               artifact project.sourcesJar
-              artifact project.testSourcesJar
               artifact project.javadocJar
 
               artifactId = project.archivesBaseName
