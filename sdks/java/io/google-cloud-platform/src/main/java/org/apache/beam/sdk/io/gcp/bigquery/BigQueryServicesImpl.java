@@ -1071,8 +1071,9 @@ class BigQueryServicesImpl implements BigQueryServices {
         credential == null
             ? new NullCredentialInitializer()
             : new HttpCredentialsAdapter(credential));
-    // Do not log 404. It clutters the output and is possibly even required by the
-    // caller.
+
+    initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
+
     initBuilder.add(httpRequestInitializer);
     if (requestLatencies != null) {
       initBuilder.add(new LatencyRecordingHttpRequestInitializer(requestLatencies));
