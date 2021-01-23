@@ -121,12 +121,10 @@ class WindmillStateReader {
      *
      * <p>Null for other kinds.
      */
-    @Nullable
-    abstract RequestPositionT getRequestPosition();
+    abstract @Nullable RequestPositionT getRequestPosition();
 
     /** For {@link Kind#ORDERED_LIST} kinds: the range to fetch or delete. */
-    @Nullable
-    abstract Range<Long> getSortedListRange();
+    abstract @Nullable Range<Long> getSortedListRange();
 
     static <RequestPositionT> StateTag<RequestPositionT> of(
         Kind kind, ByteString tag, String stateFamily, @Nullable RequestPositionT requestPosition) {
