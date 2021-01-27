@@ -619,7 +619,7 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public @Nullable ReadableState<ValueT> putIfAbsent(
+    public @Nullable ReadableState<ValueT> computeIfAbsent(
         KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
       final ByteArray encodedKey = encodeKey(key);
       final ValueT current = decodeValue(store.get(encodedKey));
