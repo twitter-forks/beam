@@ -48,6 +48,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -353,29 +354,40 @@ class BatchLoads<DestinationT, ElementT>
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
-    tempTables
-        // Now that the load job has happened, we want the rename to happen immediately.
-        .apply(
-            "Window Into Global Windows",
-            Window.<KV<TableDestination, String>>into(new GlobalWindows())
-                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-        .apply("Add Void Key", WithKeys.of((Void) null))
-        .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
-        .apply("GroupByKey", GroupByKey.create())
-        .apply("Extract Values", Values.create())
-        .apply(
-            "WriteRenameTriggered",
-            ParDo.of(
-                    new WriteRename(
-                        bigQueryServices,
-                        copyJobIdPrefixView,
-                        writeDisposition,
-                        createDisposition,
-                        maxRetryJobs,
-                        kmsKey))
-                .withSideInputs(copyJobIdPrefixView));
-    writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
-    return writeResult(p);
+    PCollection<TableDestination> successfulMultiPartitionInserts =
+        tempTables
+            // Now that the load job has happened, we want the rename to happen immediately.
+            .apply(
+                "Window Into Global Windows",
+                Window.<KV<TableDestination, String>>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
+            .apply("Add Void Key", WithKeys.of((Void) null))
+            .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
+            .apply("GroupByKey", GroupByKey.create())
+            .apply("Extract Values", Values.create())
+            .apply(
+                "WriteRenameTriggered",
+                ParDo.of(
+                        new WriteRename(
+                            bigQueryServices,
+                            copyJobIdPrefixView,
+                            writeDisposition,
+                            createDisposition,
+                            maxRetryJobs,
+                            kmsKey))
+                    .withSideInputs(copyJobIdPrefixView));
+
+    PCollection<TableDestination> successfulWrites =
+        writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView)
+            .apply(
+                "RewindowSinglePartitionResults",
+                Window.<TableDestination>into(new GlobalWindows())
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))));
+
+    PCollectionList<TableDestination> allSuccessfulInserts =
+        PCollectionList.of(successfulMultiPartitionInserts).and(successfulWrites);
+
+    return writeResult(p, allSuccessfulInserts.apply(Flatten.pCollections()));
   }
 
   // Expand the pipeline when the user has not requested periodically-triggered file writes.
@@ -437,8 +449,10 @@ class BatchLoads<DestinationT, ElementT>
                         maxRetryJobs,
                         kmsKey))
                 .withSideInputs(loadJobIdPrefixView));
-    writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
-    return writeResult(p);
+
+    PCollection<TableDestination> successfulWrites =
+        writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
+    return writeResult(p, successfulWrites);
   }
 
   // Generate the base job id string.
@@ -695,7 +709,7 @@ class BatchLoads<DestinationT, ElementT>
 
   // In the case where the files fit into a single load job, there's no need to write temporary
   // tables and rename. We can load these files directly into the target BigQuery table.
-  void writeSinglePartition(
+  PCollection<TableDestination> writeSinglePartition(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input,
       PCollectionView<String> loadJobIdPrefixView) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList(loadJobIdPrefixView);
@@ -705,34 +719,43 @@ class BatchLoads<DestinationT, ElementT>
             ShardedKeyCoder.of(NullableCoder.of(destinationCoder)),
             ListCoder.of(StringUtf8Coder.of()));
     // Write single partition to final table
-    input
-        .setCoder(partitionsCoder)
-        // Reshuffle will distribute this among multiple workers, and also guard against
-        // reexecution of the WritePartitions step once WriteTables has begun.
-        .apply("SinglePartitionsReshuffle", Reshuffle.of())
-        .apply(
-            "SinglePartitionWriteTables",
-            new WriteTables<>(
-                false,
-                bigQueryServices,
-                loadJobIdPrefixView,
-                writeDisposition,
-                createDisposition,
-                sideInputs,
-                dynamicDestinations,
-                loadJobProjectId,
-                maxRetryJobs,
-                ignoreUnknownValues,
-                kmsKey,
-                rowWriterFactory.getSourceFormat(),
-                useAvroLogicalTypes,
-                schemaUpdateOptions));
+    PCollection<KV<TableDestination, String>> successfulWrites =
+        input
+            .setCoder(partitionsCoder)
+            // Reshuffle will distribute this among multiple workers, and also guard against
+            // reexecution of the WritePartitions step once WriteTables has begun.
+            .apply("SinglePartitionsReshuffle", Reshuffle.of())
+            .apply(
+                "SinglePartitionWriteTables",
+                new WriteTables<>(
+                    false,
+                    bigQueryServices,
+                    loadJobIdPrefixView,
+                    writeDisposition,
+                    createDisposition,
+                    sideInputs,
+                    dynamicDestinations,
+                    loadJobProjectId,
+                    maxRetryJobs,
+                    ignoreUnknownValues,
+                    kmsKey,
+                    rowWriterFactory.getSourceFormat(),
+                    useAvroLogicalTypes,
+                    schemaUpdateOptions));
+
+    return successfulWrites.apply(Keys.create());
   }
 
-  private WriteResult writeResult(Pipeline p) {
+  private WriteResult writeResult(Pipeline p, PCollection<TableDestination> successfulWrites) {
     PCollection<TableRow> empty =
         p.apply("CreateEmptyFailedInserts", Create.empty(TypeDescriptor.of(TableRow.class)));
-    return WriteResult.in(p, new TupleTag<>("failedInserts"), empty);
+
+    return WriteResult.in(
+        p,
+        new TupleTag<>("failedInserts"),
+        empty,
+        new TupleTag<>("successfulInserts"),
+        successfulWrites);
   }
 
   @Override
