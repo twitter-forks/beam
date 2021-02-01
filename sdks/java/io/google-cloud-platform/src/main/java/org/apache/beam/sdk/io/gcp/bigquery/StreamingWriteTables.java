@@ -233,7 +233,7 @@ public class StreamingWriteTables<ElementT>
               failedInsertsTag,
               TableRowJsonCoder.of(),
               ErrorContainer.TABLE_ROW_ERROR_CONTAINER);
-      return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts);
+      return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts, null, null);
     }
   }
 

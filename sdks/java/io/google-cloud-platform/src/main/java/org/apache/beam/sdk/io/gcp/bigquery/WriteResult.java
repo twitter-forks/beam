@@ -40,27 +40,48 @@ public final class WriteResult implements POutput {
   private final PCollection<TableRow> failedInserts;
   private final TupleTag<BigQueryInsertError> failedInsertsWithErrTag;
   private final PCollection<BigQueryInsertError> failedInsertsWithErr;
+  private final TupleTag<TableDestination> successfulInsertsTag;
+  private final PCollection<TableDestination> successfulInserts;
 
   /** Creates a {@link WriteResult} in the given {@link Pipeline}. */
   static WriteResult in(
-      Pipeline pipeline, TupleTag<TableRow> failedInsertsTag, PCollection<TableRow> failedInserts) {
-    return new WriteResult(pipeline, failedInsertsTag, failedInserts, null, null);
+      Pipeline pipeline,
+      TupleTag<TableRow> failedInsertsTag,
+      PCollection<TableRow> failedInserts,
+      TupleTag<TableDestination> successfulInsertsTag,
+      PCollection<TableDestination> successfulInserts) {
+    return new WriteResult(
+        pipeline,
+        failedInsertsTag,
+        failedInserts,
+        null,
+        null,
+        successfulInsertsTag,
+        successfulInserts);
   }
 
   static WriteResult withExtendedErrors(
       Pipeline pipeline,
       TupleTag<BigQueryInsertError> failedInsertsTag,
       PCollection<BigQueryInsertError> failedInserts) {
-    return new WriteResult(pipeline, null, null, failedInsertsTag, failedInserts);
+    return new WriteResult(pipeline, null, null, failedInsertsTag, failedInserts, null, null);
   }
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
+    ImmutableMap.Builder<TupleTag<?>, PValue> output = ImmutableMap.builder();
+
     if (failedInsertsTag != null) {
-      return ImmutableMap.of(failedInsertsTag, failedInserts);
+      output.put(failedInsertsTag, failedInserts);
     } else {
-      return ImmutableMap.of(failedInsertsWithErrTag, failedInsertsWithErr);
+      output.put(failedInsertsWithErrTag, failedInsertsWithErr);
     }
+
+    if (successfulInsertsTag != null) {
+      output.put(successfulInsertsTag, successfulInserts);
+    }
+
+    return output.build();
   }
 
   private WriteResult(
@@ -68,12 +89,32 @@ public final class WriteResult implements POutput {
       TupleTag<TableRow> failedInsertsTag,
       PCollection<TableRow> failedInserts,
       TupleTag<BigQueryInsertError> failedInsertsWithErrTag,
-      PCollection<BigQueryInsertError> failedInsertsWithErr) {
+      PCollection<BigQueryInsertError> failedInsertsWithErr,
+      TupleTag<TableDestination> successfulInsertsTag,
+      PCollection<TableDestination> successfulInserts) {
     this.pipeline = pipeline;
     this.failedInsertsTag = failedInsertsTag;
     this.failedInserts = failedInserts;
     this.failedInsertsWithErrTag = failedInsertsWithErrTag;
     this.failedInsertsWithErr = failedInsertsWithErr;
+    this.successfulInsertsTag = successfulInsertsTag;
+    this.successfulInserts = successfulInserts;
+  }
+
+  /**
+   * Returns a {@link PCollection} containing the {@link TableDestinations}s that were 
+   * successfully inserted.
+   *
+   * <p>Successful Inserts are only produced when using batch inserts.
+   */
+  public PCollection<TableDestination> getSuccessfulInserts() {
+    checkArgument(
+        successfulInsertsTag != null,
+        "Cannot use getSuccessfulInserts because this WriteResult was not configured "
+            + "to produce them.  Note: streaming inserts do not produce successful "
+            + "insert results.");
+
+    return successfulInserts;
   }
 
   /**
