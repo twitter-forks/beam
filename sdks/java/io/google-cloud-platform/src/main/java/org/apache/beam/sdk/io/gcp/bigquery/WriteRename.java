@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
@@ -52,7 +53,8 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>>, Void> {
+class WriteRename
+    extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>>, TableDestination> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
   private final BigQueryServices bqServices;
@@ -71,14 +73,17 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>
     final BigQueryHelpers.PendingJob retryJob;
     final TableDestination tableDestination;
     final List<TableReference> tempTables;
+    final BoundedWindow window;
 
     public PendingJobData(
         BigQueryHelpers.PendingJob retryJob,
         TableDestination tableDestination,
-        List<TableReference> tempTables) {
+        List<TableReference> tempTables,
+        BoundedWindow window) {
       this.retryJob = retryJob;
       this.tableDestination = tableDestination;
       this.tempTables = tempTables;
+      this.window = window;
     }
   }
   // All pending copy jobs.
@@ -118,7 +123,9 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>
 
   @ProcessElement
   public void processElement(
-      @Element Iterable<KV<TableDestination, WriteTables.Result>> element, ProcessContext c)
+      @Element Iterable<KV<TableDestination, WriteTables.Result>> element,
+      ProcessContext c,
+      BoundedWindow window)
       throws Exception {
     Multimap<TableDestination, WriteTables.Result> tempTables = ArrayListMultimap.create();
     for (KV<TableDestination, WriteTables.Result> entry : element) {
@@ -129,7 +136,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>
       // Process each destination table.
       // Do not copy if no temp tables are provided.
       if (!entry.getValue().isEmpty()) {
-        pendingJobs.add(startWriteRename(entry.getKey(), entry.getValue(), c));
+        pendingJobs.add(startWriteRename(entry.getKey(), entry.getValue(), c, window));
       }
     }
   }
@@ -151,6 +158,8 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>
                         .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
                     pendingJob.tableDestination.getTableDescription());
               }
+              c.output(
+                  pendingJob.tableDestination, pendingJob.window.maxTimestamp(), pendingJob.window);
               removeTemporaryTables(datasetService, pendingJob.tempTables);
               return null;
             } catch (IOException | InterruptedException e) {
@@ -171,7 +180,8 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>
   private PendingJobData startWriteRename(
       TableDestination finalTableDestination,
       Iterable<WriteTables.Result> tempTableNames,
-      ProcessContext c)
+      ProcessContext c,
+      BoundedWindow window)
       throws Exception {
     // The pane may have advanced either here due to triggering or due to an upstream trigger. We
     // check the upstream
@@ -206,7 +216,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, WriteTables.Result>
             writeDisposition,
             createDisposition,
             kmsKey);
-    return new PendingJobData(retryJob, finalTableDestination, tempTables);
+    return new PendingJobData(retryJob, finalTableDestination, tempTables, window);
   }
 
   private BigQueryHelpers.PendingJob startCopy(
