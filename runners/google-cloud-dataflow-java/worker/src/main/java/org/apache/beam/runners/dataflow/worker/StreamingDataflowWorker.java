@@ -552,14 +552,12 @@ public class StreamingDataflowWorker {
 
     void updateWatermarkMetrics(Instant inputDataWatermark, Instant outputDataWatermark) {
       long nowMillis = DateTimeUtils.currentTimeMillis();
-      long watermarkLag =
-          Math.max(0, nowMillis - inputDataWatermark.getMillis());
+      long watermarkLag = Math.max(0, nowMillis - inputDataWatermark.getMillis());
       inputWatermarkLag.getAndReset();
       inputWatermarkLag.addValue(watermarkLag);
 
       if (outputDataWatermark != null) {
-        long outputWatermarkLagMillis =
-            Math.max(0, nowMillis - outputDataWatermark.getMillis());
+        long outputWatermarkLagMillis = Math.max(0, nowMillis - outputDataWatermark.getMillis());
         outputWatermarkLag.getAndReset();
         outputWatermarkLag.addValue(outputWatermarkLagMillis);
       }
@@ -1000,8 +998,7 @@ public class StreamingDataflowWorker {
           }
         },
         60_000,
-        60_000
-    );
+        60_000);
 
     if (windmillServiceEnabled) {
       // Schedule the background getConfig thread. Blocks until windmillServer stub is ready.

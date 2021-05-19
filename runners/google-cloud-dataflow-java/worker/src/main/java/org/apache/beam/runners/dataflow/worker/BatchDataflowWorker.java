@@ -18,6 +18,8 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.*;
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_IS_THRASHING;
+import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_NUM_PUSHBACKS;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.api.services.dataflow.model.WorkItem;
@@ -64,9 +66,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_IS_THRASHING;
-import static org.apache.beam.runners.dataflow.worker.DataflowSystemMetrics.StreamingSystemCounterNames.MEMORY_MONITOR_NUM_PUSHBACKS;
 
 /**
  * This is a semi-abstract harness for executing WorkItem tasks in Java workers. Concrete
