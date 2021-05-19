@@ -102,8 +102,8 @@ public final class WriteResult implements POutput {
   }
 
   /**
-   * Returns a {@link PCollection} containing the {@link TableDestinations}s that were 
-   * successfully inserted.
+   * Returns a {@link PCollection} containing the {@link TableDestinations}s that were successfully
+   * inserted.
    *
    * <p>Successful Inserts are only produced when using batch inserts.
    */

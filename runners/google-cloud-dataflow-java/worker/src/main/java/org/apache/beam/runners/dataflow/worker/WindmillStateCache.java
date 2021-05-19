@@ -153,7 +153,7 @@ public class WindmillStateCache implements StatusDataProvider {
   public long getInvalidatesFromInconsistentToken() {
     return invalidatesFromInconsistentToken.sum();
   }
-  
+
   public CacheStats getCacheStats() {
     return stateCache.stats();
   }
@@ -258,9 +258,9 @@ public class WindmillStateCache implements StatusDataProvider {
       @SuppressWarnings("nullness") // Unsure how to annotate lambda return allowing null.
       @Nullable
       StateCacheEntry entry = localCache.computeIfAbsent(id, key -> stateCache.getIfPresent(key));
-      
+
       if (entry != null) {
-        cacheHits.increment();    
+        cacheHits.increment();
         return entry.get(namespace, address);
       } else {
         return null;
