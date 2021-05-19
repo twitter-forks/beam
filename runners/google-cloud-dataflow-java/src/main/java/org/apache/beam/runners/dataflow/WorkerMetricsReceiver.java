@@ -24,4 +24,5 @@ import org.apache.beam.sdk.annotations.Experimental;
 @Experimental
 public interface WorkerMetricsReceiver {
   void receiverCounterUpdates(List<CounterUpdate> updates);
+  default void receiveTopologyUpdate(String systemName, String userName) { }
 }

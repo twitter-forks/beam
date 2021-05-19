@@ -102,7 +102,11 @@ public class DataflowSystemMetrics {
 
     STATE_FETCHES("state_fetches_per_stage"),
 
-    STATE_FETCH_LATENCY("state_fetch_latency_per_stage");
+    STATE_FETCH_LATENCY("state_fetch_latency_per_stage"),
+
+    INPUT_WATERMARK_LAG("input_watermark_lag_ms"),
+
+    OUTPUT_WATERMARK_LAG("output_watermark_lag_ms");
 
     private final String namePrefix;
 
