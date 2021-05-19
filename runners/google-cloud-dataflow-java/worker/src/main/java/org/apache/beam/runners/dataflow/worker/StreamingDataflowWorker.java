@@ -158,6 +158,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -484,6 +485,7 @@ public class StreamingDataflowWorker {
   private final Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch;
   private Timer refreshWorkTimer;
   private Timer statusPageTimer;
+  private Timer resetWatermarkMetricsTimer;
 
   private final boolean publishCounters;
   private Timer globalWorkerUpdatesTimer;
@@ -537,11 +539,41 @@ public class StreamingDataflowWorker {
     final MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry;
     final StreamingModeExecutionStateRegistry executionStateRegistry;
     final CounterSet deltaCounters;
+    final CounterSet cumulativeCounters;
     final Counter<Long, Long> throttledMsecs;
     final Counter<Long, Long> totalProcessingMsecs;
     final Counter<Long, Long> timerProcessingMsecs;
     final Counter<Long, Long> stateFetches;
     final Counter<Long, CounterFactory.CounterDistribution> stateFetchLatency;
+    final Counter<Long, Long> inputWatermarkLag;
+    final Counter<Long, Long> outputWatermarkLag;
+
+    private long lastWatermarkUpdate = 0L;
+
+    void updateWatermarkMetrics(Instant inputDataWatermark, Instant outputDataWatermark) {
+      long nowMillis = DateTimeUtils.currentTimeMillis();
+      long watermarkLag =
+          Math.max(0, nowMillis - inputDataWatermark.getMillis());
+      inputWatermarkLag.getAndReset();
+      inputWatermarkLag.addValue(watermarkLag);
+
+      if (outputDataWatermark != null) {
+        long outputWatermarkLagMillis =
+            Math.max(0, nowMillis - outputDataWatermark.getMillis());
+        outputWatermarkLag.getAndReset();
+        outputWatermarkLag.addValue(outputWatermarkLagMillis);
+      }
+
+      lastWatermarkUpdate = nowMillis;
+    }
+
+    void resetStaleWatermarkMetrics() {
+      long nowMillis = DateTimeUtils.currentTimeMillis();
+      if (nowMillis - lastWatermarkUpdate > 60_000 * 5) {
+        inputWatermarkLag.getAndReset();
+        outputWatermarkLag.getAndReset();
+      }
+    }
 
     StageInfo(
         String stageName, String systemName, String userName, StreamingDataflowWorker worker) {
@@ -551,6 +583,7 @@ public class StreamingDataflowWorker {
       executionStateRegistry = new StreamingModeExecutionStateRegistry(worker);
       NameContext nameContext = NameContext.create(stageName, null, systemName, userName);
       deltaCounters = new CounterSet();
+      cumulativeCounters = new CounterSet();
       throttledMsecs =
           deltaCounters.longSum(
               StreamingPerStageSystemCounterNames.THROTTLED_MSECS.counterName(nameContext));
@@ -566,6 +599,12 @@ public class StreamingDataflowWorker {
       stateFetchLatency =
           deltaCounters.distribution(
               StreamingPerStageSystemCounterNames.STATE_FETCH_LATENCY.counterName(nameContext));
+      inputWatermarkLag =
+          cumulativeCounters.longSum(
+              StreamingPerStageSystemCounterNames.INPUT_WATERMARK_LAG.counterName(nameContext));
+      outputWatermarkLag =
+          cumulativeCounters.longSum(
+              StreamingPerStageSystemCounterNames.OUTPUT_WATERMARK_LAG.counterName(nameContext));
     }
 
     List<CounterUpdate> extractCounterUpdates() {
@@ -579,6 +618,8 @@ public class StreamingDataflowWorker {
       }
       counterUpdates.addAll(
           deltaCounters.extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
+      counterUpdates.addAll(
+          cumulativeCounters.extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
       return counterUpdates;
     }
 
@@ -949,6 +990,18 @@ public class StreamingDataflowWorker {
 
   public void start() {
     running.set(true);
+
+    resetWatermarkMetricsTimer = new Timer("ResetWatermarks");
+    resetWatermarkMetricsTimer.schedule(
+        new TimerTask() {
+          @Override
+          public void run() {
+            stageInfoMap.values().forEach(StageInfo::resetStaleWatermarkMetrics);
+          }
+        },
+        60_000,
+        60_000
+    );
 
     if (windmillServiceEnabled) {
       // Schedule the background getConfig thread. Blocks until windmillServer stub is ready.
@@ -1487,7 +1540,7 @@ public class StreamingDataflowWorker {
         stageInfoMap.computeIfAbsent(
             mapTask.getStageName(),
             s -> {
-              String userName = null;
+              String userName = mapTask.getSystemName();
               if (mapTask.getInstructions() != null) {
                 ParallelInstruction firstInstruction =
                     Iterables.getFirst(mapTask.getInstructions(), null);
@@ -1496,6 +1549,9 @@ public class StreamingDataflowWorker {
                   userName = firstInstruction.getName();
                 }
               }
+
+              publishTopologyUpdate(mapTask.getSystemName(), userName);
+
               return new StageInfo(s, mapTask.getSystemName(), userName, this);
             });
 
@@ -1643,6 +1699,8 @@ public class StreamingDataflowWorker {
               localStateFetcher,
               outputBuilder);
 
+      stageInfo.updateWatermarkMetrics(inputDataWatermark, outputDataWatermark);
+
       // Blocks while executing work.
       executionState.getWorkExecutor().execute();
 
@@ -1678,8 +1736,8 @@ public class StreamingDataflowWorker {
       }
 
       commitQueue.put(new Commit(commitRequest, computationState, work));
-      commitSizeBytes.addValue((long) commitSize);
-      commitSizeBytesPerCommit.addValue((long) commitSize);
+      commitSizeBytes.addValue((long) estimatedCommitSize);
+      commitSizeBytesPerCommit.addValue((long) estimatedCommitSize);
 
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
       long stateBytesWritten = outputBuilder.clearOutputMessages().build().getSerializedSize();
@@ -2437,6 +2495,16 @@ public class StreamingDataflowWorker {
       }
     } catch (Exception e) {
       LOG.error("Error publishing counter updates", e);
+    }
+  }
+
+  private void publishTopologyUpdate(String systemName, String userName) {
+    for (WorkerMetricsReceiver receiver : workerMetricReceivers) {
+      try {
+        receiver.receiveTopologyUpdate(systemName, userName);
+      } catch (Exception e) {
+        LOG.error("Error publishing topology update", e);
+      }
     }
   }
 
