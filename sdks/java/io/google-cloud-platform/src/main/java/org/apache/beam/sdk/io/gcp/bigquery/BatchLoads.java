@@ -374,7 +374,8 @@ class BatchLoads<DestinationT, ElementT>
                             writeDisposition,
                             createDisposition,
                             maxRetryJobs,
-                            kmsKey))
+                            kmsKey,
+                            loadJobProjectId))
                     .withSideInputs(copyJobIdPrefixView));
 
     PCollection<TableDestination> successfulWrites =
@@ -450,7 +451,8 @@ class BatchLoads<DestinationT, ElementT>
                         writeDisposition,
                         createDisposition,
                         maxRetryJobs,
-                        kmsKey))
+                        kmsKey,
+                        loadJobProjectId))
                 .withSideInputs(loadJobIdPrefixView));
 
     PCollection<TableDestination> successfulWrites =
