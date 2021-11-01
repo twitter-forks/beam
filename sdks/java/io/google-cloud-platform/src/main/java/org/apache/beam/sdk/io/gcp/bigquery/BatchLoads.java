@@ -453,7 +453,7 @@ class BatchLoads<DestinationT, ElementT>
                         maxRetryJobs,
                         kmsKey,
                         loadJobProjectId))
-                .withSideInputs(loadJobIdPrefixView));
+                .withSideInputs(copyJobIdPrefixView));
 
     PCollection<TableDestination> successfulWrites =
         writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
