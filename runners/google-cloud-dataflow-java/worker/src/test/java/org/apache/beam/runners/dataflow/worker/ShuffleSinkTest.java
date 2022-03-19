@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
@@ -115,7 +115,7 @@ public class ShuffleSinkTest {
       // Ignore the key.
       ByteString valueBytes = record.getValue();
       WindowedValue<Integer> value =
-          CoderUtils.decodeFromByteString(windowedValueCoder, valueBytes);
+          windowedValueCoder.decode(valueBytes.newInput(), Coder.Context.OUTER);
       Assert.assertEquals(Lists.newArrayList(GlobalWindow.INSTANCE), value.getWindows());
       actual.add(value.getValue());
     }
@@ -160,10 +160,11 @@ public class ShuffleSinkTest {
       ByteString keyBytes = record.getKey();
       ByteString valueBytes = record.getValue();
       Assert.assertEquals(
-          timestamp, CoderUtils.decodeFromByteString(InstantCoder.of(), record.getSecondaryKey()));
+          timestamp,
+          InstantCoder.of().decode(record.getSecondaryKey().newInput(), Coder.Context.OUTER));
 
-      Integer key = CoderUtils.decodeFromByteString(BigEndianIntegerCoder.of(), keyBytes);
-      String valueElem = CoderUtils.decodeFromByteString(StringUtf8Coder.of(), valueBytes);
+      Integer key = BigEndianIntegerCoder.of().decode(keyBytes.newInput(), Coder.Context.OUTER);
+      String valueElem = StringUtf8Coder.of().decode(valueBytes.newInput(), Coder.Context.OUTER);
 
       actual.add(KV.of(key, valueElem));
     }
@@ -206,10 +207,11 @@ public class ShuffleSinkTest {
       ByteString valueBytes = record.getValue();
       ByteString sortKeyBytes = record.getSecondaryKey();
 
-      Integer key = CoderUtils.decodeFromByteString(BigEndianIntegerCoder.of(), keyBytes);
-      String sortKey =
-          CoderUtils.decodeFromByteString(StringUtf8Coder.of(), sortKeyBytes, Coder.Context.NESTED);
-      Integer sortValue = CoderUtils.decodeFromByteString(BigEndianIntegerCoder.of(), valueBytes);
+      Integer key = BigEndianIntegerCoder.of().decode(keyBytes.newInput(), Coder.Context.OUTER);
+      InputStream bais = sortKeyBytes.newInput();
+      String sortKey = StringUtf8Coder.of().decode(bais);
+      Integer sortValue =
+          BigEndianIntegerCoder.of().decode(valueBytes.newInput(), Coder.Context.OUTER);
 
       actual.add(KV.of(key, KV.of(sortKey, sortValue)));
     }

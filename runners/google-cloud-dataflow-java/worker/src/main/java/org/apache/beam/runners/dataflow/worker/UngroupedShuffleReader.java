@@ -117,7 +117,7 @@ public class UngroupedShuffleReader<T> extends NativeReader<T> {
       // Throw away the primary and the secondary keys.
       ByteString value = record.getValue();
       shuffleReader.notifyElementRead(record.length());
-      current = CoderUtils.decodeFromByteString(shuffleReader.coder, value);
+      current = shuffleReader.coder.decode(value.newInput(), Coder.Context.OUTER);
       return true;
     }
 

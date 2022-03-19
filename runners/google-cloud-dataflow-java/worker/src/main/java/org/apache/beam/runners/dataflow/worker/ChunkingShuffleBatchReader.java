@@ -80,7 +80,6 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
     ByteString key = getFixedLengthPrefixedByteArray(chunk);
     ByteString skey = getFixedLengthPrefixedByteArray(chunk);
     ByteString value = getFixedLengthPrefixedByteArray(chunk);
-
     return new ShuffleEntry(ByteArrayShufflePosition.of(position), key, skey, value);
   }
 

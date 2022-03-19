@@ -62,8 +62,8 @@ public class ShuffleEntryTest {
 
   @Test
   public void equalsForEqualNullEntries() {
-    ShuffleEntry entry0 = new ShuffleEntry(null, null, null);
-    ShuffleEntry entry1 = new ShuffleEntry(null, null, null);
+    ShuffleEntry entry0 = new ShuffleEntry((byte[]) null, null, null);
+    ShuffleEntry entry1 = new ShuffleEntry((byte[]) null, null, null);
 
     assertEquals(entry0, entry1);
     assertEquals(entry1, entry0);
@@ -135,8 +135,8 @@ public class ShuffleEntryTest {
 
   @Test
   public void emptyNotTheSameAsNull() {
-    final ByteString empty = ByteString.EMPTY;
-    ShuffleEntry entry0 = new ShuffleEntry(null, null, null);
+    final byte[] empty = {};
+    ShuffleEntry entry0 = new ShuffleEntry((byte[]) null, null, null);
     ShuffleEntry entry1 = new ShuffleEntry(empty, empty, empty);
 
     assertFalse(entry0.equals(entry1));

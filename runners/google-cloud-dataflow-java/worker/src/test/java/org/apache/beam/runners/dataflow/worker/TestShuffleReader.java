@@ -46,7 +46,8 @@ public class TestShuffleReader implements ShuffleEntryReader {
         if (o2 == null) {
           return 1;
         }
-        return ByteString.unsignedLexicographicalComparator().compare(o1, o2);
+        return UnsignedBytes.lexicographicalComparator()
+            .compare(o1.toByteArray(), o2.toByteArray());
       };
 
   final TreeMap<ByteString, TreeMap<ByteString, List<ShuffleEntry>>> records =
@@ -78,7 +79,7 @@ public class TestShuffleReader implements ShuffleEntryReader {
   }
 
   public Iterator<ShuffleEntry> read() {
-    return read((ByteString) null, null);
+    return read((ByteString) null, (ByteString) null);
   }
 
   private ByteString toByteString(ShufflePosition pos) {

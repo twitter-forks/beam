@@ -39,6 +39,21 @@ public class ShuffleEntry {
     this.value = value;
   }
 
+  public ShuffleEntry(byte[] key, byte[] secondaryKey, byte[] value) {
+    this(
+        key == null ? null : ByteString.copyFrom(key),
+        secondaryKey == null ? null : ByteString.copyFrom(secondaryKey),
+        value == null ? null : ByteString.copyFrom(value));
+  }
+
+  public ShuffleEntry(ShufflePosition position, byte[] key, byte[] secondaryKey, byte[] value) {
+    this(
+        position,
+        ByteString.copyFrom(key),
+        ByteString.copyFrom(secondaryKey),
+        ByteString.copyFrom(value));
+  }
+
   public ShuffleEntry(
       ShufflePosition position, ByteString key, ByteString secondaryKey, ByteString value) {
     this.position = position;
