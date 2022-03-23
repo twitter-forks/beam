@@ -25,10 +25,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
@@ -231,6 +235,7 @@ public class CoGbkResult {
 
     private final CoGbkResultSchema schema;
     private final UnionCoder unionCoder;
+    private final List<IterableCoder<?>> tagCoders;
 
     /** Returns a {@link CoGbkResultCoder} for the given schema and {@link UnionCoder}. */
     public static CoGbkResultCoder of(CoGbkResultSchema schema, UnionCoder unionCoder) {
@@ -240,6 +245,10 @@ public class CoGbkResult {
     private CoGbkResultCoder(CoGbkResultSchema tupleTags, UnionCoder unionCoder) {
       this.schema = tupleTags;
       this.unionCoder = unionCoder;
+      this.tagCoders =
+          unionCoder.getElementCoders().stream()
+              .map(IterableCoder::of)
+              .collect(Collectors.toList());
     }
 
     @Override
@@ -284,7 +293,7 @@ public class CoGbkResult {
 
     @SuppressWarnings("rawtypes")
     private IterableCoder tagListCoder(int unionTag) {
-      return IterableCoder.of(unionCoder.getElementCoders().get(unionTag));
+      return tagCoders.get(unionTag);
     }
 
     @Override
@@ -308,6 +317,17 @@ public class CoGbkResult {
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
           this, "CoGbkResult requires the union coder to be deterministic", unionCoder);
+    }
+
+    @Override
+    @SuppressWarnings("rawtypes")
+    public void registerByteSizeObserver(CoGbkResult value, ElementByteSizeObserver observer)
+        throws Exception {
+      int tag = 0;
+      for (Iterable<?> iter : value.valueMap) {
+        tagListCoder(tag).registerByteSizeObserver(iter, observer);
+        tag++;
+      }
     }
   }
 
@@ -582,7 +602,8 @@ public class CoGbkResult {
    *
    * @param <T> The value type of the corresponding tag.
    */
-  private static class TagIterable<T> implements Iterable<T> {
+  private static class TagIterable<T>
+      extends ElementByteSizeObservableIterable<T, ElementByteSizeObservableIterator<T>> {
     int tag;
     int cacheSize;
 
@@ -621,8 +642,8 @@ public class CoGbkResult {
     }
 
     @Override
-    public Iterator<T> iterator() {
-      return new Iterator<T>() {
+    protected ElementByteSizeObservableIterator<T> createIterator() {
+      return new ElementByteSizeObservableIterator<T>() {
 
         boolean isDone;
         boolean advanced;
