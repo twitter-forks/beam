@@ -381,7 +381,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.37.0.twttr3'
+    project.version = '2.37.0.twttr-sc1'
 
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
