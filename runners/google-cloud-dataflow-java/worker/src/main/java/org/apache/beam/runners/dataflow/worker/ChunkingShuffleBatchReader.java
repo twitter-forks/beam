@@ -19,14 +19,17 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.ShuffleCompressor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ByteArrayShufflePosition;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleBatchReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleEntry;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ShufflePosition;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.UnsafeByteOperations;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ChunkingShuffleBatchReader reads data from a shuffle dataset using a ShuffleReader. */
@@ -35,13 +38,17 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
   private ExecutionStateTracker tracker;
   private ExecutionState readState;
 
+  private final @Nullable ShuffleCompressor shuffleCompressor;
+
   public ChunkingShuffleBatchReader(
       BatchModeExecutionContext executionContext,
       DataflowOperationContext operationContext,
-      ShuffleReader reader) {
+      ShuffleReader reader,
+      @Nullable ShuffleCompressor shuffleCompressor) {
     this.reader = reader;
     this.readState = operationContext.newExecutionState("read-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
+    this.shuffleCompressor = shuffleCompressor;
   }
 
   @Override
@@ -79,23 +86,40 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
     ByteString position = getFixedLengthPrefixedByteArray(chunk);
     ByteString key = getFixedLengthPrefixedByteArray(chunk);
     ByteString skey = getFixedLengthPrefixedByteArray(chunk);
-    ByteString value = getFixedLengthPrefixedByteArray(chunk);
+    ByteString value;
+
+    if (shuffleCompressor != null) {
+      ByteBuffer slice = getFixedLengthPrefixedByteSlice(chunk);
+      if (slice.remaining() == 0) {
+        value = ByteString.EMPTY;
+      } else {
+        ByteBuffer decompressed = shuffleCompressor.decompress(slice);
+        value = UnsafeByteOperations.unsafeWrap(decompressed);
+      }
+    } else {
+      value = getFixedLengthPrefixedByteArray(chunk);
+    }
 
     return new ShuffleEntry(ByteArrayShufflePosition.of(position), key, skey, value);
   }
 
-  /**
-   * Extracts a length-prefix-encoded byte array from a given InputStream.
-   *
-   * @param chunk chunk to read from
-   * @return parsed byte array
-   */
-  private static ByteString getFixedLengthPrefixedByteArray(ByteArrayReader chunk)
-      throws IOException {
+  static ByteBuffer getFixedLengthPrefixedByteSlice(ByteArrayReader chunk) throws IOException {
     int length = chunk.readInt();
     if (length < 0) {
       throw new IOException("invalid length: " + length);
     }
     return chunk.read(length);
   }
+
+  static ByteString getFixedLengthPrefixedByteArray(ByteArrayReader chunk) throws IOException {
+    ByteBuffer slice = getFixedLengthPrefixedByteSlice(chunk);
+    if (slice.remaining() == 0) {
+      return ByteString.EMPTY;
+    } else {
+      return UnsafeByteOperations.unsafeWrap(slice);
+    }
+  }
+
+  @Override
+  public void close() throws IOException {}
 }

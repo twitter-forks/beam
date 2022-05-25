@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -25,7 +26,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * ShuffleBatchReader provides an interface for reading a batch of key/value entries from a shuffle
  * dataset.
  */
-public interface ShuffleBatchReader {
+public interface ShuffleBatchReader extends Closeable {
   /** The result returned by #read. */
   class Batch {
     public final List<ShuffleEntry> entries;
