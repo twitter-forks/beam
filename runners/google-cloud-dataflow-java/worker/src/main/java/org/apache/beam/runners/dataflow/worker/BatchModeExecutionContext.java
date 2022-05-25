@@ -32,6 +32,8 @@ import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.dataflow.ShuffleCompressor;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -69,6 +71,8 @@ public class BatchModeExecutionContext
   private final CounterSet memoryDeltaCounter;
   private Object key;
 
+  private final ShuffleCompressor.Factory shuffleCompressorFactory;
+
   private final MetricsContainerRegistry<MetricsContainerImpl> containerRegistry;
 
   // TODO(https://github.com/apache/beam/issues/19632): Move throttle time Metric to a dedicated
@@ -105,6 +109,8 @@ public class BatchModeExecutionContext
     this.dataCache = dataCache;
     this.containerRegistry =
         (MetricsContainerRegistry<MetricsContainerImpl>) getMetricsContainerRegistry();
+    this.shuffleCompressorFactory =
+        options.as(DataflowPipelineDebugOptions.class).getShuffleCompressorFactory();
   }
 
   private static MetricsContainerRegistry<MetricsContainerImpl> createMetricsContainerRegistry() {
@@ -317,6 +323,10 @@ public class BatchModeExecutionContext
         "Cannot call getSideInputReaderForViews for batch DataflowWorker: "
             + "the MapTask specification should have had SideInputInfo descriptors "
             + "for each side input, and a SideInputReader provided via getSideInputReader");
+  }
+
+  public ShuffleCompressor getShuffleCompressor(@Nullable String stageName) {
+    return shuffleCompressorFactory.create(stageName);
   }
 
   // TODO: Expose a keyed sub-cache which allows one to store all cached values in their

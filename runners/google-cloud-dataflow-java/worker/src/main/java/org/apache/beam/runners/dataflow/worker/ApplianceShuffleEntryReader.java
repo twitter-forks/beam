@@ -41,7 +41,11 @@ public class ApplianceShuffleEntryReader implements ShuffleEntryReader {
     applianceShuffleReader = new ApplianceShuffleReader(shuffleReaderConfig, operationContext);
 
     ShuffleBatchReader batchReader =
-        new ChunkingShuffleBatchReader(executionContext, operationContext, applianceShuffleReader);
+        new ChunkingShuffleBatchReader(
+            executionContext,
+            operationContext,
+            applianceShuffleReader,
+            executionContext.getShuffleCompressor(operationContext.nameContext().stageName()));
 
     if (cache) {
       // Limit the size of the cache.

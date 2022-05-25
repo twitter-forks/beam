@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p48p1.com.google.protobuf.UnsafeByteOperations;
+import java.nio.ByteBuffer;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 
 class ByteArrayReader {
+  private static final ByteBuffer EMPTY = ByteBuffer.allocate(0).asReadOnlyBuffer();
 
   private final byte[] arr;
   private int pos;
@@ -41,12 +41,12 @@ class ByteArrayReader {
     return ret;
   }
 
-  public ByteString read(int size) {
+  public ByteBuffer read(int size) {
     if (size == 0) {
-      return ByteString.EMPTY;
+      return EMPTY;
     }
 
-    ByteString ret = UnsafeByteOperations.unsafeWrap(arr, pos, size);
+    ByteBuffer ret = ByteBuffer.wrap(arr, pos, size);
     pos += size;
     return ret;
   }
