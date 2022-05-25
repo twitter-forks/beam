@@ -1179,7 +1179,8 @@ public class StreamingDataflowWorker {
         backoff = Math.min(1000, backoff * 2);
       } while (running.get());
 
-      dispatchExecutor.execute(new DispatchWorkRunnable(workResponse), workResponse.getSerializedSize());
+      dispatchExecutor.execute(
+          new DispatchWorkRunnable(workResponse), workResponse.getSerializedSize());
     }
   }
 

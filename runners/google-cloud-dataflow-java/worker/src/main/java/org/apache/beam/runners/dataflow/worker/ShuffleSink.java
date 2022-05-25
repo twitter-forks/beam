@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.ShuffleCompressor;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
@@ -39,6 +41,7 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A sink that writes to a shuffle dataset.
@@ -50,6 +53,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
+
   enum ShuffleKind {
     UNGROUPED,
     PARTITION_KEYS,
@@ -69,6 +73,8 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
   private final DataflowOperationContext operationContext;
   private ExecutionStateTracker tracker;
   private ExecutionState writeState;
+
+  private final ShuffleCompressor.Factory shuffleCompressorFactory;
 
   boolean shardByKey;
   boolean groupValues;
@@ -104,6 +110,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     this.operationContext = operationContext;
     this.writeState = operationContext.newExecutionState("write-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
+    this.shuffleCompressorFactory =
+        options.as(DataflowPipelineDebugOptions.class).getShuffleCompressorFactory();
+
     initCoder(coder);
   }
 
@@ -181,7 +190,12 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
    * per-worker per-dataset bytes written to shuffle.
    */
   public SinkWriter<WindowedValue<T>> writer(ShuffleWriter writer, String datasetId) {
-    return new ShuffleSinkWriter(writer, options, operationContext.counterFactory(), datasetId);
+    return new ShuffleSinkWriter(
+        writer,
+        options,
+        operationContext.counterFactory(),
+        datasetId,
+        shuffleCompressorFactory.create(operationContext.nameContext().stageName()));
   }
 
   /** The SinkWriter for a ShuffleSink. */
@@ -195,19 +209,22 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     // How many bytes were written to a given shuffle session.
     private final Counter<Long, ?> perDatasetBytesCounter;
     private final RandomAccessData chunk;
+    private final ShuffleCompressor shuffleCompressor;
     private boolean closed = false;
 
     ShuffleSinkWriter(
         ShuffleWriter writer,
         PipelineOptions options,
         CounterFactory counterFactory,
-        String datasetId) {
+        String datasetId,
+        @Nullable ShuffleCompressor shuffleCompressor) {
       this.writer = writer;
       this.perDatasetBytesCounter =
           counterFactory.longSum(CounterName.named("dax-shuffle-" + datasetId + "-written-bytes"));
       // Initialize the chunk with the minimum size so we do not have to
       // "grow" the internal byte[] up to the minimum chunk size.
       this.chunk = new RandomAccessData(MIN_OUTPUT_CHUNK_SIZE);
+      this.shuffleCompressor = shuffleCompressor;
     }
 
     @Override
@@ -262,7 +279,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           internalBytes[initialChunkSize + 3] = (byte) ((elementSize >>> 0) & 0xFF);
           bytes += elementSize;
 
-          bytes += encodeToChunk(sortValueCoder, sortValue);
+          bytes += encodeToChunk(sortValueCoder, sortValue, true);
         } else if (groupValues) {
           // Sort values by timestamp so that GroupAlsoByWindows can run efficiently.
           if (windowedElem.getTimestamp().equals(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
@@ -272,10 +289,10 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           } else {
             bytes += encodeToChunk(InstantCoder.of(), windowedElem.getTimestamp());
           }
-          bytes += encodeToChunk(valueCoder, value);
+          bytes += encodeToChunk(valueCoder, value, true);
         } else {
           chunk.asOutputStream().write(NULL_VALUE_WITH_SIZE_PREFIX);
-          bytes += encodeToChunk(windowedValueCoder, windowedElem.withValue(value));
+          bytes += encodeToChunk(windowedValueCoder, windowedElem.withValue(value), true);
         }
 
       } else {
@@ -287,7 +304,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         // preserved in the output.
         bytes += encodeToChunk(BigEndianLongCoder.of(), seqNum++);
         chunk.asOutputStream().write(NULL_VALUE_WITH_SIZE_PREFIX);
-        bytes += encodeToChunk(windowedElemCoder, windowedElem);
+        bytes += encodeToChunk(windowedElemCoder, windowedElem, true);
       }
 
       if (chunk.size() > MIN_OUTPUT_CHUNK_SIZE) {
@@ -305,6 +322,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       try (Closeable trackedCloseState = tracker.enterState(writeState)) {
         outputChunk();
         writer.close();
+        if (shuffleCompressor != null) {
+          shuffleCompressor.close();;
+        }
       } finally {
         closed = true;
       }
@@ -325,17 +345,30 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> int encodeToChunk(Coder<EncodeT> coder, EncodeT value) throws IOException {
+      return encodeToChunk(coder, value, false);
+    }
+
+    private <EncodeT> int encodeToChunk(Coder<EncodeT> coder, EncodeT value, boolean compress)
+        throws IOException {
       // Move forward enough bytes so we can prefix the size on after performing the write
       int initialChunkSize = chunk.size();
       chunk.resetTo(initialChunkSize + Ints.BYTES);
 
+      int dataStart = chunk.size();
+
       coder.encode(value, chunk.asOutputStream(), Context.OUTER);
-      int elementSize = chunk.size() - initialChunkSize - Ints.BYTES;
+      int elementSize = chunk.size() - dataStart;
+      int actualElementSize = elementSize;
+      if (compress && shuffleCompressor != null && elementSize > 0) {
+        shuffleCompressor.compress(chunk, dataStart, elementSize);
+        actualElementSize = chunk.size() - dataStart;
+      }
+
       byte[] internalBytes = chunk.array();
-      internalBytes[initialChunkSize] = (byte) ((elementSize >>> 24) & 0xFF);
-      internalBytes[initialChunkSize + 1] = (byte) ((elementSize >>> 16) & 0xFF);
-      internalBytes[initialChunkSize + 2] = (byte) ((elementSize >>> 8) & 0xFF);
-      internalBytes[initialChunkSize + 3] = (byte) ((elementSize >>> 0) & 0xFF);
+      internalBytes[initialChunkSize] = (byte) ((actualElementSize >>> 24) & 0xFF);
+      internalBytes[initialChunkSize + 1] = (byte) ((actualElementSize >>> 16) & 0xFF);
+      internalBytes[initialChunkSize + 2] = (byte) ((actualElementSize >>> 8) & 0xFF);
+      internalBytes[initialChunkSize + 3] = (byte) ((actualElementSize >>> 0) & 0xFF);
       return elementSize;
     }
   }

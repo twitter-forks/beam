@@ -27,7 +27,9 @@ import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** An implementation of ShuffleEntryReader that uses ApplianceShuffleReader. */
+/**
+ * An implementation of ShuffleEntryReader that uses ApplianceShuffleReader.
+ */
 public class ApplianceShuffleEntryReader implements ShuffleEntryReader {
   private ApplianceShuffleReader applianceShuffleReader;
   private ShuffleEntryReader entryReader;
@@ -41,7 +43,7 @@ public class ApplianceShuffleEntryReader implements ShuffleEntryReader {
     applianceShuffleReader = new ApplianceShuffleReader(shuffleReaderConfig, operationContext);
 
     ShuffleBatchReader batchReader =
-        new ChunkingShuffleBatchReader(executionContext, operationContext, applianceShuffleReader);
+        new ChunkingShuffleBatchReader(executionContext, operationContext, applianceShuffleReader, executionContext.getShuffleCompressor(operationContext.nameContext().stageName()));
 
     if (cache) {
       // Limit the size of the cache.
