@@ -21,6 +21,16 @@ pluginManagement {
   plugins {
      id("org.javacc.javacc") version "3.0.0" // enable the JavaCC parser generator
   }
+
+  repositories {
+    maven { url=uri("https://artifactory.local.twitter.com/java-virtual") }
+  }
+}
+
+buildscript {
+  repositories {
+    maven { url=uri("https://artifactory.local.twitter.com/java-virtual") }
+  }
 }
 
 plugins {

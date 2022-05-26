@@ -25,16 +25,7 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
-  maven { url = uri("https://plugins.gradle.org/m2/") }
-  maven {
-    url = uri("https://repo.spring.io/plugins-release/")
-    content { includeGroup("io.spring.gradle") }
-  }
-  // For obsolete Avro plugin
-  maven {
-    url = uri("https://jitpack.io")
-    content { includeGroup("com.github.davidmc24.gradle-avro-plugin") }
-  }
+  maven { url = uri("https://artifactory.local.twitter.com/java-virtual") }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
