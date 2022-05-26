@@ -119,6 +119,12 @@ publishing {
     }
 
     repositories project.ext.repositories
+
+    if (project.hasProperty('mavenUserSettingsFileName')) {
+        mavenSettings {
+            userSettingsFileName = mavenUserSettingsFileName
+        }
+    }
 }
 
 // Only sign artifacts if we are performing a release
