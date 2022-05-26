@@ -36,28 +36,11 @@ class Repositories {
         return
       }
 
-      mavenCentral()
       mavenLocal()
 
       // For pentaho dependencies.
       maven {
-        url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release"
-        content { includeGroup "org.pentaho" }
-      }
-
-      // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
-
-      // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
-
-      // Apache release snapshots
-      maven { url "https://repository.apache.org/content/repositories/releases" }
-
-      // For Confluent Kafka dependencies
-      maven {
-        url "https://packages.confluent.io/maven/"
-        content { includeGroup "io.confluent" }
+        url "https://artifactory.twitter.biz:443/java-virtual"
       }
     }
 
