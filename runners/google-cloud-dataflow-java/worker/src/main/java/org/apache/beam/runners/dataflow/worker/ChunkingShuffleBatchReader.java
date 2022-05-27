@@ -126,4 +126,8 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
       return UnsafeByteOperations.unsafeWrap(slice);
     }
   }
+
+  @Override
+  public void close() throws IOException {
+  }
 }
