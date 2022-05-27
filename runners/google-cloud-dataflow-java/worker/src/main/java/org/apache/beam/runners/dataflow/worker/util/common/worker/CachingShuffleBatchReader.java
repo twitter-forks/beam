@@ -81,6 +81,10 @@ public class CachingShuffleBatchReader implements ShuffleBatchReader {
     }
   }
 
+  @Override
+  public void close() throws IOException {
+  }
+
   /** The key for the entries stored in the batch cache. */
   static final class BatchRange {
     protected final @Nullable ShufflePosition startPosition;
