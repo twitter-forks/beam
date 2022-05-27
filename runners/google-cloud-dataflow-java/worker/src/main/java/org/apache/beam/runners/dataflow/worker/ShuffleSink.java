@@ -322,6 +322,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       try (Closeable trackedCloseState = tracker.enterState(writeState)) {
         outputChunk();
         writer.close();
+        if (shuffleCompressor != null) {
+          shuffleCompressor.close();;
+        }
       } finally {
         closed = true;
       }
