@@ -29,7 +29,9 @@ plugins { id 'org.apache.beam.module' }
 // by adding -Pdataflow.version=<version> in Gradle command. Otherwise,
 // 'google_clients_version' defined in BeamModulePlugin will be used as default.
 def DATAFLOW_VERSION = "dataflow.version"
-def DATAFLOW_WORKER_REV = "20200504"
+// this corresponds to the date this branch was created; not particularly important to update this.
+// helps to build the worker without having to build the entire SDK
+def DATAFLOW_WORKER_REV = "20220602"
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
@@ -111,8 +113,8 @@ applyJavaNature(
     dependencies {
       include(dependency(library.java.slf4j_jdk14))
     }
-            
-    dependencies { 
+
+    dependencies {
       include(dependency(library.java.hdrhistogram))
     }
 
