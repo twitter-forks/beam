@@ -18,15 +18,13 @@
 
 pluginManagement {
   repositories {
-    maven { url=uri("https://artifactory.twitter.biz:443/java-virtual") }
+    maven { url=uri("https://artifactory.local.twitter.com/java-virtual") }
   }
 }
 
 buildscript {
   repositories {
-    maven {
-      url=uri("https://artifactory.twitter.biz:443/java-virtual")
-    }
+    maven { url=uri("https://artifactory.local.twitter.com/java-virtual") }
   }
 }
 

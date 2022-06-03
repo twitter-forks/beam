@@ -37,11 +37,7 @@ class Repositories {
       }
 
       mavenLocal()
-
-      // For pentaho dependencies.
-      maven {
-        url "https://artifactory.twitter.biz:443/java-virtual"
-      }
+      maven { url "https://artifactory.local.twitter.com/java-virtual" }
     }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
@@ -55,11 +51,7 @@ class Repositories {
     project.offlineDependencies {
       repositories {
         mavenLocal()
-        mavenCentral()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://repo.spring.io/plugins-release" }
-        maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }
-        maven { url "https://packages.confluent.io/maven/" }
+        maven { url "https://artifactory.local.twitter.com/java-virtual" }
         maven { url project.offlineRepositoryRoot }
       }
       includeSources = false
