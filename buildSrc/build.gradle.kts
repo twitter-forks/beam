@@ -25,7 +25,7 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
-  maven { url = uri("https://artifactory.twitter.biz:443/java-virtual") }
+  maven { url = uri("https://artifactory.local.twitter.com/java-virtual") }
 }
 
 // Dependencies on other plugins used when this plugin is invoked
