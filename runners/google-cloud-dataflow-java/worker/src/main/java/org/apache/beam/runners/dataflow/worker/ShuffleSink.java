@@ -195,7 +195,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         options,
         operationContext.counterFactory(),
         datasetId,
-        shuffleCompressorFactory.create(datasetId));
+        shuffleCompressorFactory.create(operationContext.nameContext().stageName()));
   }
 
   /** The SinkWriter for a ShuffleSink. */
