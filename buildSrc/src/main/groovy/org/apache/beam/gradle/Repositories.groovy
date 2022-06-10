@@ -43,6 +43,11 @@ class Repositories {
     // plugin to support repository authentication via ~/.m2/settings.xml
     // https://github.com/mark-vieira/gradle-maven-settings-plugin/
     project.apply plugin: 'net.linguica.maven-settings'
+    if (project.hasProperty("mavenUserSettingsFileName")) {
+      project.mavenSettings {
+        userSettingsFileName = project.properties["mavenUserSettingsFileName"].toString()
+      }
+    }
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
     // repository. This offline repository satisfies all Gradle build dependencies and Java
