@@ -23,7 +23,7 @@ import org.apache.beam.runners.dataflow.util.RandomAccessData;
 
 public interface ShuffleCompressor extends Closeable {
   interface Factory {
-    ShuffleCompressor create(String datasetId);
+    ShuffleCompressor create(String stageName);
   }
 
   /**
