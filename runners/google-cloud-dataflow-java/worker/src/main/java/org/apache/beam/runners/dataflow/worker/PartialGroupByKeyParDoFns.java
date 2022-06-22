@@ -116,7 +116,8 @@ public class PartialGroupByKeyParDoFns {
               new CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
               new CoderSizeEstimator<>(inputCoder),
               0.001, /*sizeEstimatorSampleRate*/
-              maxSizeBytes /*maxSizeBytes*/);
+              maxSizeBytes /*maxSizeBytes*/,
+              Integer.MAX_VALUE);
       return new SimplePartialGroupByKeyParDoFn<>(groupingTable, receiver);
     } else {
       GroupingTables.Combiner<WindowedValue<K>, InputT, AccumT, ?> valueCombiner =

@@ -37,7 +37,7 @@ public class GroupingTables {
       SizeEstimator<? super K> keySizer,
       SizeEstimator<? super V> valueSizer) {
     return new BufferingGroupingTable<>(
-        DEFAULT_MAX_GROUPING_TABLE_BYTES, groupingKeyCreator, pairInfo, keySizer, valueSizer);
+        DEFAULT_MAX_GROUPING_TABLE_BYTES, Integer.MAX_VALUE, groupingKeyCreator, pairInfo, keySizer, valueSizer);
   }
 
   /**
@@ -50,7 +50,7 @@ public class GroupingTables {
       SizeEstimator<? super K> keySizer,
       SizeEstimator<? super V> valueSizer) {
     return new BufferingGroupingTable<>(
-        maxTableSizeBytes, groupingKeyCreator, pairInfo, keySizer, valueSizer);
+        maxTableSizeBytes, Integer.MAX_VALUE, groupingKeyCreator, pairInfo, keySizer, valueSizer);
   }
 
   /**
@@ -63,9 +63,11 @@ public class GroupingTables {
       SizeEstimator<? super K> keySizer,
       SizeEstimator<? super V> valueSizer,
       double sizeEstimatorSampleRate,
-      long maxSizeBytes) {
+      long maxSizeBytes,
+      int maxElementsPerKey) {
     return new BufferingGroupingTable<>(
         maxSizeBytes,
+        maxElementsPerKey,
         groupingKeyCreator,
         pairInfo,
         new SamplingSizeEstimator<>(keySizer, sizeEstimatorSampleRate, 1.0),
@@ -219,6 +221,10 @@ public class GroupingTables {
           receiver);
     }
 
+    protected boolean shouldFlushEntry(GroupingTableEntry<K, InputT, AccumT> entry) {
+      return false;
+    }
+
     /**
      * Adds the key and value to this table, possibly flushing some entries to output if the table
      * is full.
@@ -235,6 +241,12 @@ public class GroupingTables {
       }
       entry.add(value);
       size += entry.getSize();
+
+      if (shouldFlushEntry(entry)) {
+        size -= entry.getSize() + PER_KEY_OVERHEAD;
+        table.remove(groupingKey);
+        output(entry, receiver);
+      }
 
       if (size >= maxSize) {
         long targetSize = (long) (TARGET_LOAD * maxSize);
@@ -289,9 +301,11 @@ public class GroupingTables {
 
     public final SizeEstimator<? super K> keySizer;
     public final SizeEstimator<? super V> valueSizer;
+    private final int maxElementsPerKey;
 
     private BufferingGroupingTable(
         long maxSize,
+        int maxElementsPerKey,
         GroupingKeyCreator<? super K> groupingKeyCreator,
         PairInfo pairInfo,
         SizeEstimator<? super K> keySizer,
@@ -299,6 +313,12 @@ public class GroupingTables {
       super(maxSize, groupingKeyCreator, pairInfo);
       this.keySizer = keySizer;
       this.valueSizer = valueSizer;
+      this.maxElementsPerKey = maxElementsPerKey;
+    }
+
+    @Override
+    protected boolean shouldFlushEntry(GroupingTableEntry<K, V, List<V>> entry) {
+      return entry.getValue().size() >= maxElementsPerKey;
     }
 
     @Override

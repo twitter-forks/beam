@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -164,9 +165,8 @@ public class ShuffleSinkTest {
           InstantCoder.of().decode(record.getSecondaryKey().newInput(), Coder.Context.OUTER));
 
       Integer key = BigEndianIntegerCoder.of().decode(keyBytes.newInput(), Coder.Context.OUTER);
-      String valueElem = StringUtf8Coder.of().decode(valueBytes.newInput(), Coder.Context.OUTER);
-
-      actual.add(KV.of(key, valueElem));
+      List<String> valueElem = ListCoder.of(StringUtf8Coder.of()).decode(valueBytes.newInput(), Coder.Context.OUTER);
+      valueElem.forEach(v -> actual.add(KV.of(key, v)));
     }
 
     Assert.assertEquals(expected, actual);

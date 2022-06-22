@@ -20,25 +20,35 @@ package org.apache.beam.runners.dataflow.worker;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.GroupingTable;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.GroupingTables;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A sink that writes to a shuffle dataset.
@@ -57,6 +67,8 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     GROUP_KEYS_AND_SORT_VALUES
   }
 
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleSink.class);
+
   static final long SHUFFLE_WRITER_BUFFER_SIZE = 128 << 20;
   private static final byte[] NULL_VALUE_WITH_SIZE_PREFIX = new byte[] {0, 0, 0, 0};
 
@@ -67,18 +79,21 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
   final PipelineOptions options;
 
   private final DataflowOperationContext operationContext;
+  private final BatchModeExecutionContext executionContext;
   private ExecutionStateTracker tracker;
   private ExecutionState writeState;
 
   boolean shardByKey;
   boolean groupValues;
   boolean sortValues;
+  boolean pregroupValues;
 
   WindowedValueCoder<T> windowedElemCoder;
   WindowedValueCoder windowedValueCoder;
   Coder<T> elemCoder;
   Coder keyCoder;
   Coder valueCoder;
+  Coder valueListCoder;
   Coder sortKeyCoder;
   Coder sortValueCoder;
 
@@ -102,6 +117,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     this.shuffleKind = shuffleKind;
     this.options = options;
     this.operationContext = operationContext;
+    this.executionContext = executionContext;
     this.writeState = operationContext.newExecutionState("write-shuffle");
     this.tracker = executionContext.getExecutionStateTracker();
     initCoder(coder);
@@ -118,16 +134,19 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
         this.shardByKey = true;
         this.groupValues = false;
         this.sortValues = false;
+        this.pregroupValues = false;
         break;
       case GROUP_KEYS:
         this.shardByKey = true;
         this.groupValues = true;
         this.sortValues = false;
+        this.pregroupValues = true;
         break;
       case GROUP_KEYS_AND_SORT_VALUES:
         this.shardByKey = true;
         this.groupValues = true;
         this.sortValues = true;
+        this.pregroupValues = false;
         break;
       default:
         throw new AssertionError("unexpected shuffle kind");
@@ -145,6 +164,7 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) elemCoder;
       this.keyCoder = kvCoder.getKeyCoder();
       this.valueCoder = kvCoder.getValueCoder();
+      this.valueListCoder = ListCoder.of(valueCoder);
       if (sortValues) {
         // TODO: Decide the representation of sort-keyed values.
         // For now, we'll just use KVs.
@@ -197,6 +217,9 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
     private final RandomAccessData chunk;
     private boolean closed = false;
 
+    private final GroupingTable groupingTable;
+    private final Receiver receiver;
+
     ShuffleSinkWriter(
         ShuffleWriter writer,
         PipelineOptions options,
@@ -208,10 +231,41 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       // Initialize the chunk with the minimum size so we do not have to
       // "grow" the internal byte[] up to the minimum chunk size.
       this.chunk = new RandomAccessData(MIN_OUTPUT_CHUNK_SIZE);
+      this.shuffleCompressor = shuffleCompressor;
+      this.groupingTable = GroupingTables.bufferingAndSampling(
+          new PartialGroupByKeyParDoFns.WindowingCoderGroupingKeyCreator(keyCoder),
+          PartialGroupByKeyParDoFns.PairInfo.create(),
+          new PartialGroupByKeyParDoFns.CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
+          new PartialGroupByKeyParDoFns.CoderSizeEstimator<>(valueCoder),
+          0.001, /*sizeEstimatorSampleRate*/
+          10_000_000 /*maxSizeBytes*/,
+          1000
+      );
+      this.receiver = new Receiver() {
+        @Override
+        public void process(Object outputElem) throws Exception {
+          addImpl((WindowedValue<T>) outputElem);
+        }
+      };
     }
 
     @Override
     public long add(WindowedValue<T> windowedElem) throws IOException {
+      if (!pregroupValues) {
+        addImpl(windowedElem);
+        return 0;
+      }
+
+      try {
+        groupingTable.put(windowedElem, receiver);
+      } catch (Exception ex) {
+        Throwables.propagateIfPossible(ex, IOException.class);
+        throw new RuntimeException(ex);
+      }
+      return 0;
+    }
+
+    private void addImpl(WindowedValue<T> windowedElem) throws IOException {
       T elem = windowedElem.getValue();
       long bytes = 0;
       if (shardByKey) {
@@ -272,7 +326,13 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
           } else {
             bytes += encodeToChunk(InstantCoder.of(), windowedElem.getTimestamp());
           }
-          bytes += encodeToChunk(valueCoder, value);
+
+          if (pregroupValues) {
+            int numItems = ((List<?>) value).size();
+            bytes += encodeToChunk(valueListCoder, value, true);
+          } else {
+            bytes += encodeToChunk(valueCoder, value, true);
+          }
         } else {
           chunk.asOutputStream().write(NULL_VALUE_WITH_SIZE_PREFIX);
           bytes += encodeToChunk(windowedValueCoder, windowedElem.withValue(value));
@@ -297,12 +357,18 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       }
 
       perDatasetBytesCounter.addValue(bytes);
-      return bytes;
+      executionContext.reportBytesSinked(bytes);
     }
 
     @Override
     public void close() throws IOException {
       try (Closeable trackedCloseState = tracker.enterState(writeState)) {
+        try {
+          groupingTable.flush(receiver);
+        } catch (Exception ex) {
+          Throwables.propagateIfPossible(ex, IOException.class);
+          throw new RuntimeException(ex);
+        }
         outputChunk();
         writer.close();
       } finally {

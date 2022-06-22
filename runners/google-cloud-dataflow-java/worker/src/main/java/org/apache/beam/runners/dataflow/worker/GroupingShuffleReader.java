@@ -28,6 +28,8 @@ import com.google.api.services.dataflow.model.ApproximateSplitRequest;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -47,11 +49,13 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ShuffleReadCou
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
+import org.apache.beam.sdk.util.common.ListReiterator;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
@@ -85,6 +89,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
   Coder<K> keyCoder;
   Coder<?> valueCoder;
   @Nullable Coder<?> secondaryKeyCoder;
+  @Nullable Coder<?> listValueCoder;
 
   public GroupingShuffleReader(
       PipelineOptions options,
@@ -168,6 +173,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
       this.valueCoder = valueKvCoder.getValueCoder();
     } else {
       this.valueCoder = iterCoder.getElemCoder();
+      this.listValueCoder = ListCoder.of(valueCoder);
     }
   }
 
@@ -411,20 +417,27 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       private boolean atFirstValue = true;
 
+      private Reiterator<V> inner;
+
       public ValuesIterator(Reiterator<ShuffleEntry> base, AtomicBoolean aborted) {
         this.base = checkNotNull(base);
         this.aborted = aborted;
       }
 
       private ValuesIterator(
-          Reiterator<ShuffleEntry> base, AtomicBoolean aborted, boolean atFirstValue) {
+          Reiterator<ShuffleEntry> base, AtomicBoolean aborted, boolean atFirstValue, Reiterator<V> inner) {
         this.base = checkNotNull(base);
         this.aborted = aborted;
         this.atFirstValue = atFirstValue;
+        this.inner = inner;
       }
 
       @Override
       public boolean hasNext() {
+        if (inner != null) {
+          return inner.hasNext();
+        }
+
         try (Closeable read = tracker.enterState(readState)) {
           return base.hasNext();
         } catch (IOException e) {
@@ -441,6 +454,15 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
         if (!atFirstValue && aborted.get()) {
           throw new RuntimeException(new InterruptedException("Worker was asked to abort"));
         }
+
+        if (inner != null) {
+          V value = inner.next();
+          if (!inner.hasNext()) {
+            inner = null;
+          }
+          return value;
+        }
+
         atFirstValue = false;
         try (Closeable read = tracker.enterState(readState)) {
           ShuffleEntry entry = base.next();
@@ -463,11 +485,12 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
               return value;
             } else {
               @SuppressWarnings("unchecked")
-              V value =
-                  (V)
-                      parentReader.valueCoder.decode(
+              List<V> value =
+                  (List<V>)
+                      parentReader.listValueCoder.decode(
                           entry.getValue().newInput(), Coder.Context.OUTER);
-              return value;
+              inner = new ListReiterator<>(value);
+              return inner.next();
             }
           } catch (IOException exn) {
             throw new RuntimeException(exn);
@@ -484,7 +507,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
 
       @Override
       public ValuesIterator copy() {
-        return new ValuesIterator(base.copy(), aborted, atFirstValue);
+        return new ValuesIterator(base.copy(), aborted, atFirstValue, inner == null ? null : inner.copy());
       }
     }
   }
