@@ -551,8 +551,7 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
               resourceId);
 
           try {
-            SeekableByteChannel rawChannel =
-                openIfNeeded(Optional.fromNullable(rawChannelReference.get()));
+            SeekableByteChannel rawChannel = openIfNeeded(Optional.of(rawChannelReference.get()));
             rawChannelReference.set(rawChannel);
             return readIndexBlockForShard(resourceId, shardWithIndex, startOfNextBlock, rawChannel);
           } catch (IOException e) {
