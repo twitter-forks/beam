@@ -201,10 +201,6 @@ import org.slf4j.LoggerFactory;
 })
 public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
-  /** Experiment to "unsafely attempt to process unbounded data in batch mode". */
-  public static final String UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE =
-      "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
-
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
   /** Provided configuration options. */
   private final DataflowPipelineOptions options;
@@ -1120,7 +1116,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
-    if (shouldActAsStreaming(pipeline)) {
+    if (containsUnboundedPCollection(pipeline)) {
       options.setStreaming(true);
 
       if (useUnifiedWorker(options)) {
@@ -1558,58 +1554,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // setup overrides.
   @VisibleForTesting
   protected void replaceV1Transforms(Pipeline pipeline) {
-    boolean streaming = shouldActAsStreaming(pipeline);
+    boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
     // Ensure all outputs of all reads are consumed before potentially replacing any
     // Read PTransforms
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
     pipeline.replaceAll(getOverrides(streaming));
   }
 
-  private boolean shouldActAsStreaming(Pipeline p) {
+  private boolean containsUnboundedPCollection(Pipeline p) {
     class BoundednessVisitor extends PipelineVisitor.Defaults {
 
-      final List<PCollection> unboundedPCollections = new ArrayList<>();
+      IsBounded boundedness = IsBounded.BOUNDED;
 
       @Override
       public void visitValue(PValue value, Node producer) {
         if (value instanceof PCollection) {
-          PCollection pc = (PCollection) value;
-          if (pc.isBounded() == IsBounded.UNBOUNDED) {
-            unboundedPCollections.add(pc);
-          }
+          boundedness = boundedness.and(((PCollection) value).isBounded());
         }
       }
     }
 
     BoundednessVisitor visitor = new BoundednessVisitor();
     p.traverseTopologically(visitor);
-    if (visitor.unboundedPCollections.isEmpty()) {
-      if (options.isStreaming()) {
-        LOG.warn(
-            "No unbounded PCollection(s) found in a streaming pipeline! "
-                + "You might consider using 'streaming=false'!");
-        return true;
-      } else {
-        return false;
-      }
-    } else {
-      if (options.isStreaming()) {
-        return true;
-      } else if (hasExperiment(options, UNSAFELY_ATTEMPT_TO_PROCESS_UNBOUNDED_DATA_IN_BATCH_MODE)) {
-        LOG.info(
-            "Turning a batch pipeline into streaming due to unbounded PCollection(s) has been avoided! "
-                + "Unbounded PCollection(s): {}",
-            visitor.unboundedPCollections);
-        return false;
-      } else {
-        LOG.warn(
-            "Unbounded PCollection(s) found in a batch pipeline! "
-                + "You might consider using 'streaming=true'! "
-                + "Unbounded PCollection(s): {}",
-            visitor.unboundedPCollections);
-        return true;
-      }
-    }
+    return visitor.boundedness == IsBounded.UNBOUNDED;
   };
 
   /** Returns the DataflowPipelineTranslator associated with this object. */
