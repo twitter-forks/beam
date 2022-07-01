@@ -1476,6 +1476,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
 
       project.tasks.withType(JavaCompile) {
+        options.incremental = false
+
         options.errorprone.disableWarningsInGeneratedCode = true
         options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
 
