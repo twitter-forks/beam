@@ -16,17 +16,6 @@
  * limitations under the License.
  */
 
-pluginManagement {
-  repositories {
-    maven { url=uri("https://artifactory.local.twitter.com/java-virtual") }
-  }
-}
-
-buildscript {
-  repositories {
-    maven { url=uri("https://artifactory.local.twitter.com/java-virtual") }
-  }
-}
 
 plugins {
   id("com.gradle.enterprise") version "3.4.1" apply false

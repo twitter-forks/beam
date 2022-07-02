@@ -36,16 +36,22 @@ class Repositories {
         return
       }
 
+      mavenCentral()
       mavenLocal()
-      maven { url "https://artifactory.local.twitter.com/java-virtual" }
-    }
 
-    // plugin to support repository authentication via ~/.m2/settings.xml
-    // https://github.com/mark-vieira/gradle-maven-settings-plugin/
-    project.apply plugin: 'net.linguica.maven-settings'
-    if (project.hasProperty("mavenUserSettingsFileName")) {
-      project.mavenSettings {
-        userSettingsFileName = project.properties["mavenUserSettingsFileName"].toString()
+      // Release staging repository
+      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
+
+      // Apache nightly snapshots
+      maven { url "https://repository.apache.org/snapshots" }
+
+      // Apache release snapshots
+      maven { url "https://repository.apache.org/content/repositories/releases" }
+
+      // For Confluent Kafka dependencies
+      maven {
+        url "https://packages.confluent.io/maven/"
+        content { includeGroup "io.confluent" }
       }
     }
 
@@ -60,7 +66,10 @@ class Repositories {
     project.offlineDependencies {
       repositories {
         mavenLocal()
-        maven { url "https://artifactory.local.twitter.com/java-virtual" }
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url "https://repo.spring.io/plugins-release" }
+        maven { url "https://packages.confluent.io/maven/" }
         maven { url project.offlineRepositoryRoot }
       }
       includeSources = false
