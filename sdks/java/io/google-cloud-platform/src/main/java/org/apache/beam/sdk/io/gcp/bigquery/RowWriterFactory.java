@@ -23,6 +23,7 @@ import java.io.Serializable;
 import org.apache.avro.Schema;
 import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable {
@@ -135,10 +136,12 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
         throw new IllegalStateException(
             "createRowWriter called when schemaFactory is null; forgot to call prepare()?");
       }
+      @SuppressWarnings({
+        "nullness" // it is valid for getSchema to return null if schemaFactory.apply does not
+        // require it to be non-null.
+      })
+      @NonNull
       TableSchema tableSchema = dynamicDestinations.getSchema(destination);
-      if (tableSchema == null) {
-        throw new IllegalStateException("dynamicDestinations.getSchema returned null");
-      }
       Schema avroSchema = schemaFactory.apply(tableSchema);
       return new AvroRowWriter<>(tempFilePrefix, avroSchema, toAvro, writerFactory);
     }
