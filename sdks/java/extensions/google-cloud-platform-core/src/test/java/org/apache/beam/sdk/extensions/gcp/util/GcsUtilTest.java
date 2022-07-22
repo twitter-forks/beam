@@ -603,6 +603,7 @@ public class GcsUtilTest {
 
     gcsUtil.setStorageClient(
         new Storage(mockTransport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()));
+
     gcsUtil.fileSizes(
         ImmutableList.of(
             GcsPath.fromComponents("testbucket", "testobject"),
