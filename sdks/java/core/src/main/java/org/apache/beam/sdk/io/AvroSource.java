@@ -69,6 +69,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
 import org.apache.commons.compress.utils.CountingInputStream;
 import org.apache.commons.compress.utils.IOUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -608,6 +609,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           return new BZip2CompressorInputStream(byteStream);
         case DataFileConstants.NULL_CODEC:
           return byteStream;
+        case ZstandardCompressionCodec.ZSTD_CODEC:
+          return new ZstdCompressorInputStream(byteStream);
         default:
           throw new IllegalArgumentException("Unsupported codec: " + codec);
       }

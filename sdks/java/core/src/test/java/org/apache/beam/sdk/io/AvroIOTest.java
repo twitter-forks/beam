@@ -164,6 +164,16 @@ public class AvroIOTest implements Serializable {
     }
 
     @Test
+    public void testWriteWithSerDeCustomZstdCodec() {
+      CodecFactory codecFactory = ZstandardCompressionCodec.getCodecFactory(4, true);
+      AvroIO.Write<String> write =
+          AvroIO.write(String.class).to("/tmp/foo/baz").withCodec(codecFactory);
+      assertEquals(
+          codecFactory.toString(),
+          SerializableUtils.clone(write.inner.getCodec()).getCodec().toString());
+    }
+
+    @Test
     public void testReadDisplayData() {
       AvroIO.Read<String> read = AvroIO.read(String.class).from("/foo.*");
 
@@ -736,6 +746,33 @@ public class AvroIOTest implements Serializable {
           new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader())) {
         assertEquals("deflate", dataFileStream.getMetaString("avro.codec"));
       }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @Category(NeedsRunner.class)
+    public void testCompressedWriteAndReadASingleFileWithZstd() throws Throwable {
+      List<GenericClass> values =
+          ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
+      File outputFile = tmpFolder.newFile("output.avro");
+      CodecFactory codecFactory = ZstandardCompressionCodec.getCodecFactory(5, true);
+
+      writePipeline
+          .apply(Create.of(values))
+          .apply(
+              AvroIO.write(GenericClass.class)
+                  .to(outputFile.getAbsolutePath())
+                  .withoutSharding()
+                  .withCodec(codecFactory));
+      writePipeline.run();
+
+      PAssert.that(
+              readPipeline.apply(
+                  AvroIO.read(GenericClass.class)
+                      .withBeamSchemas(withBeamSchemas)
+                      .from(outputFile.getAbsolutePath())))
+          .containsInAnyOrder(values);
+      readPipeline.run();
     }
 
     @Test

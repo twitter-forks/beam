@@ -109,7 +109,11 @@ public class AvroSourceTest {
             ? new GenericDatumWriter<>(coder.getSchema())
             : new ReflectDatumWriter<>(coder.getSchema());
     try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
-      writer.setCodec(CodecFactory.fromString(codec));
+      if (!codec.equals(ZstandardCompressionCodec.ZSTD_CODEC)) {
+        writer.setCodec(CodecFactory.fromString(codec));
+      } else  {
+        writer.setCodec(ZstandardCompressionCodec.getCodecFactory(5, true));
+      }
       writer.create(coder.getSchema(), os);
 
       int recordIndex = 0;
@@ -150,6 +154,7 @@ public class AvroSourceTest {
       DataFileConstants.DEFLATE_CODEC,
       DataFileConstants.SNAPPY_CODEC,
       DataFileConstants.XZ_CODEC,
+      ZstandardCompressionCodec.ZSTD_CODEC
     };
     // As Avro's default block size is 64KB, write 64K records to ensure at least one full block.
     // We could make this smaller than 64KB assuming each record is at least B bytes, but then the

@@ -22,6 +22,7 @@ import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
+import static org.apache.beam.sdk.io.ZstandardCompressionCodec.ZSTD_CODEC;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
@@ -49,6 +50,7 @@ class SerializableAvroCodecFactory implements Externalizable {
       Arrays.asList(NULL_CODEC, SNAPPY_CODEC, BZIP2_CODEC);
   private static final Pattern deflatePattern = Pattern.compile(DEFLATE_CODEC + "-(?<level>-?\\d)");
   private static final Pattern xzPattern = Pattern.compile(XZ_CODEC + "-(?<level>\\d)");
+  private static final Pattern zstdPattern = Pattern.compile(ZSTD_CODEC + "-(?<level>\\d)");
 
   private @Nullable CodecFactory codecFactory;
 
@@ -65,7 +67,8 @@ class SerializableAvroCodecFactory implements Externalizable {
     final String codecStr = codecFactory.toString();
     return noOptAvroCodecs.contains(codecStr)
         || deflatePattern.matcher(codecStr).matches()
-        || xzPattern.matcher(codecStr).matches();
+        || xzPattern.matcher(codecStr).matches()
+        || zstdPattern.matcher(codecStr).matches();
   }
 
   @Override
@@ -94,6 +97,13 @@ class SerializableAvroCodecFactory implements Externalizable {
     Matcher xzMatcher = xzPattern.matcher(codecStr);
     if (xzMatcher.find()) {
       codecFactory = CodecFactory.xzCodec(Integer.parseInt(xzMatcher.group("level")));
+      return;
+    }
+
+    Matcher zstdMatcher = zstdPattern.matcher(codecStr);
+    if (zstdMatcher.find()) {
+      codecFactory =
+          new ZstandardCompressionCodec.Option(Integer.parseInt(zstdMatcher.group("level")), true);
       return;
     }
 
