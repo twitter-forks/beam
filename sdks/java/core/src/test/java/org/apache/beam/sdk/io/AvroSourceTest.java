@@ -111,7 +111,7 @@ public class AvroSourceTest {
     try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
       if (!codec.equals(ZstandardCompressionCodec.ZSTD_CODEC)) {
         writer.setCodec(CodecFactory.fromString(codec));
-      } else  {
+      } else {
         writer.setCodec(ZstandardCompressionCodec.getCodecFactory(5, true));
       }
       writer.create(coder.getSchema(), os);

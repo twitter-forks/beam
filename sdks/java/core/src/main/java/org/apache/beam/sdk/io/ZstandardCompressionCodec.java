@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
+import com.github.luben.zstd.Zstd;
+import com.github.luben.zstd.ZstdInputStream;
+import com.github.luben.zstd.ZstdOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,8 +28,6 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import org.apache.avro.file.Codec;
 import org.apache.avro.file.CodecFactory;
-import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
-import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.apache.commons.compress.utils.IOUtils;
 
 public class ZstandardCompressionCodec extends Codec {
@@ -47,22 +48,35 @@ public class ZstandardCompressionCodec extends Codec {
     }
   }
 
-    public static CodecFactory getCodecFactory(int compressionLevel, boolean useChecksum) {
+  public static CodecFactory getCodecFactory(int compressionLevel, boolean useChecksum) {
     return new Option(compressionLevel, useChecksum);
   }
 
   private final int compressionLevel;
   private final boolean useChecksum;
+  private final int windowLog;
+  private final int workers;
   private ByteArrayOutputStream outputBuffer;
 
   /** Create a ZstandardCodec instance with the given compressionLevel and checksum option. */
   public ZstandardCompressionCodec(int compressionLevel, boolean useChecksum) {
-    this.compressionLevel = compressionLevel;
+    this.compressionLevel =
+        Math.max(
+            Math.min(compressionLevel, Zstd.maxCompressionLevel()), Zstd.minCompressionLevel());
     this.useChecksum = useChecksum;
+    this.windowLog = -1;
+    this.workers = -1;
   }
 
-  private int computeOffset(ByteBuffer data) {
-    return data.arrayOffset() + data.position();
+  /** Create a ZstandardCodec instance with the given compressionLevel and checksum option. */
+  public ZstandardCompressionCodec(
+      int compressionLevel, boolean useChecksum, int windowLog, int workers) {
+    this.compressionLevel =
+        Math.max(
+            Math.min(compressionLevel, Zstd.maxCompressionLevel()), Zstd.minCompressionLevel());
+    this.useChecksum = useChecksum;
+    this.windowLog = windowLog;
+    this.workers = workers;
   }
 
   @Override
@@ -72,29 +86,37 @@ public class ZstandardCompressionCodec extends Codec {
 
   @Override
   public ByteBuffer compress(ByteBuffer data) throws IOException {
-    ByteArrayOutputStream baos = getOutputBuffer(data.remaining());
     byte[] bytes = new byte[data.remaining()];
     data.get(bytes);
     data.position(data.position() - bytes.length);
 
-    try (OutputStream outputStream =
-        new ZstdCompressorOutputStream(baos, compressionLevel, true, useChecksum)) {
-      outputStream.write(bytes, computeOffset(data), data.remaining());
+    ByteArrayOutputStream baos = getOutputBuffer(data.remaining());
+    ZstdOutputStream zstdOutputStream = new ZstdOutputStream(baos, compressionLevel);
+    zstdOutputStream.setCloseFrameOnFlush(false);
+    zstdOutputStream.setChecksum(useChecksum);
+    if (windowLog != -1) {
+      zstdOutputStream.setLong(windowLog);
+    }
+    if (workers != -1) {
+      zstdOutputStream.setWorkers(workers);
+    }
+
+    try (OutputStream outputStream = zstdOutputStream) {
+      outputStream.write(bytes, 0, bytes.length);
     }
     return ByteBuffer.wrap(baos.toByteArray());
   }
 
   @Override
   public ByteBuffer decompress(ByteBuffer compressedData) throws IOException {
-    ByteArrayOutputStream baos = getOutputBuffer(compressedData.remaining());
     byte[] bytes = new byte[compressedData.remaining()];
     compressedData.get(bytes);
     compressedData.position(compressedData.position() - bytes.length);
 
-    InputStream bytesIn =
-        new ByteArrayInputStream(bytes, computeOffset(compressedData), compressedData.remaining());
+    ByteArrayOutputStream baos = getOutputBuffer(compressedData.remaining());
+    InputStream bytesIn = new ByteArrayInputStream(bytes, 0, bytes.length);
 
-    try (InputStream ios = new ZstdCompressorInputStream(bytesIn)) {
+    try (InputStream ios = new ZstdInputStream(bytesIn)) {
       IOUtils.copy(ios, baos);
     }
     return ByteBuffer.wrap(baos.toByteArray());
