@@ -236,7 +236,7 @@ if __name__ == '__main__':
         'fastavro>=0.23.6,<2',
         'grpcio>=1.33.1,!=1.48.0,<2',
         'hdfs>=2.1.0,<3.0.0',
-        'httplib2>=0.8,<0.21.0',
+        'httplib2>=0.8,<0.22.0',
         'numpy>=1.14.3,<1.23.0',
         # Tight bound since minor version releases caused breakages.
         'objsize>=0.5.2,<0.6.0',
