@@ -31,7 +31,7 @@ plugins { id 'org.apache.beam.module' }
 def DATAFLOW_VERSION = "dataflow.version"
 // this corresponds to the date this branch was created; not particularly important to update this.
 // helps to build the worker without having to build the entire SDK
-def DATAFLOW_WORKER_REV = "20221107"
+def DATAFLOW_WORKER_REV = "20230322"
 
 // Get full dependency of 'com.google.apis:google-api-services-dataflow'
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
