@@ -20,8 +20,7 @@ package org.apache.beam.runners.flink;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +28,11 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.RemoteEnvironment;
@@ -473,6 +477,73 @@ public class FlinkExecutionEnvironmentsTest {
         FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
 
     assertThat(sev.getStateBackend(), instanceOf(RocksDBStateBackend.class));
+  }
+
+  /** Test interface. */
+  public interface TestOptions extends PipelineOptions {
+    String getKey1();
+
+    void setKey1(String value);
+
+    Boolean getKey2();
+
+    void setKey2(Boolean value);
+  }
+
+  @Test
+  public void shouldSetWebUIOptions() {
+    PipelineOptionsFactory.register(TestOptions.class);
+    PipelineOptionsFactory.register(FlinkPipelineOptions.class);
+
+    FlinkPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(
+                "--key1=value1",
+                "--key2",
+                "--parallelism=10",
+                "--checkpointTimeoutMillis=500",
+                "--checkpointingInterval=100",
+                "--executionRetryDelay=1",
+                "--maxParallelism=1",
+                "--minPauseBetweenCheckpoints=1",
+                "--numberOfExecutionRetries=1",
+                "--shutdownSourcesAfterIdleMs=10")
+            .as(FlinkPipelineOptions.class);
+
+    StreamExecutionEnvironment sev =
+        FlinkExecutionEnvironments.createStreamExecutionEnvironment(options);
+    ExecutionEnvironment ev = FlinkExecutionEnvironments.createBatchExecutionEnvironment(options);
+
+    Map<String, String> actualMap = sev.getConfig().getGlobalJobParameters().toMap();
+    Map<String, String> actualBatchMap = ev.getConfig().getGlobalJobParameters().toMap();
+
+    Map<String, String> expectedMap = new HashMap<>();
+    expectedMap.put("checkpointingInterval", "100");
+    expectedMap.put("key1", "value1");
+    expectedMap.put("key2", "true");
+    expectedMap.put("optionsId", "0");
+    expectedMap.put("appName", "FlinkExecutionEnvironmentsTest");
+    expectedMap.put("checkpointTimeoutMillis", "500");
+    expectedMap.put("executionRetryDelay", "1");
+    expectedMap.put("maxParallelism", "1");
+    expectedMap.put("parallelism", "10");
+    expectedMap.put("numberOfExecutionRetries", "1");
+    expectedMap.put("minPauseBetweenCheckpoints", "1");
+    expectedMap.put("latencyTrackingInterval", "0");
+    expectedMap.put("shutdownSourcesAfterIdleMs", "10");
+    expectedMap.put("checkpointingMode", "EXACTLY_ONCE");
+    expectedMap.put("failOnCheckpointingErrors", "true");
+    expectedMap.put("numConcurrentCheckpoints", "1");
+    expectedMap.put("retainExternalizedCheckpointsOnCancellation", "false");
+    expectedMap.put("objectReuse", "false");
+    expectedMap.put("externalizedCheckpointsEnabled", "false");
+    expectedMap.put("flinkMaster", "[auto]");
+
+    Map<String, String> expectedBatchMap = new HashMap<>(expectedMap);
+    expectedBatchMap.put("executionModeForBatch", "PIPELINED");
+    expectedBatchMap.put("gcsPerformanceMetrics", "false");
+
+    assertTrue(Maps.difference(expectedMap, actualMap).areEqual());
+    assertTrue(Maps.difference(expectedBatchMap, actualBatchMap).areEqual());
   }
 
   private void checkHostAndPort(Object env, String expectedHost, int expectedPort) {
