@@ -1602,11 +1602,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             visitor.unboundedPCollections);
         return false;
       } else {
-        LOG.warn(
-            "Unbounded PCollection(s) found in a batch pipeline! "
-                + "You might consider using 'streaming=true'! "
-                + "Unbounded PCollection(s): {}",
-            visitor.unboundedPCollections);
         return true;
       }
     }
