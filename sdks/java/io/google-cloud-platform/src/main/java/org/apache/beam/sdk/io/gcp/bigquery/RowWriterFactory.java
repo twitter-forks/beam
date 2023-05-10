@@ -23,7 +23,6 @@ import java.io.Serializable;
 import org.apache.avro.Schema;
 import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable {

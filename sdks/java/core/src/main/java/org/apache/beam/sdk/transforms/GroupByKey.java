@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEarlyAndLate;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.FromEndOfWindow;
@@ -35,10 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code GroupByKey<K, V>} takes a {@code PCollection<KV<K, V>>}, groups the values by key and
@@ -171,25 +166,6 @@ public class GroupByKey<K, V>
                   + "https://s.apache.org/finishing-triggers-drop-data "
                   + "for details.",
               windowingStrategy.getTrigger()));
-    }
-  }
-
-  @Override
-  public void validate(
-      @Nullable PipelineOptions options,
-      Map<TupleTag<?>, PCollection<?>> inputs,
-      Map<TupleTag<?>, PCollection<?>> outputs) {
-    PCollection<?> input = Iterables.getOnlyElement(inputs.values());
-    KvCoder<K, V> inputCoder = getInputKvCoder(input.getCoder());
-
-    // Ensure that the output coder key and value types aren't different.
-    Coder<?> outputCoder = Iterables.getOnlyElement(outputs.values()).getCoder();
-    KvCoder<?, ?> expectedOutputCoder = getOutputKvCoder(inputCoder);
-    if (!expectedOutputCoder.equals(outputCoder)) {
-      throw new IllegalStateException(
-          String.format(
-              "the GroupByKey requires its output coder to be %s but found %s.",
-              expectedOutputCoder, outputCoder));
     }
   }
 
