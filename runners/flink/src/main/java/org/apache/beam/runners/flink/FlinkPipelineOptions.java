@@ -142,6 +142,12 @@ public interface FlinkPipelineOptions
 
   void setNumberOfExecutionRetries(Integer retries);
 
+  @Description("Set the attached mode")
+  @Default.Boolean(true)
+  boolean getAttachedMode();
+
+  void setAttachedMode(boolean attachedMode);
+
   @Description(
       "Sets the delay in milliseconds between executions. A value of {@code -1} "
           + "indicates that the default value should be used.")

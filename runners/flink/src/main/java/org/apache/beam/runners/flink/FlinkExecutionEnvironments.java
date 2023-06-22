@@ -40,11 +40,8 @@ import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.LocalEnvironment;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.api.java.RemoteEnvironment;
+import org.apache.flink.configuration.*;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
@@ -123,6 +120,14 @@ public class FlinkExecutionEnvironments {
     flinkBatchEnv
         .getConfig()
         .setExecutionMode(ExecutionMode.valueOf(options.getExecutionModeForBatch()));
+
+    // Only RemoteEnvironment support detached mode, other batch environment enforce to use attached
+    // mode
+    if (flinkBatchEnv instanceof RemoteEnvironment) {
+      flinkBatchEnv.getConfiguration().set(DeploymentOptions.ATTACHED, options.getAttachedMode());
+    } else {
+      LOG.warn("Detached mode is only supported in RemoteEnvironment for batch");
+    }
 
     // set the correct parallelism.
     if (options.getParallelism() != -1 && !(flinkBatchEnv instanceof CollectionEnvironment)) {
@@ -232,6 +237,18 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().enableObjectReuse();
     } else {
       flinkStreamEnv.getConfig().disableObjectReuse();
+    }
+
+    // Only RemoteStreamEnvironment support detached mode, other stream environment enforce to use
+    // attached mode.
+    if (!options.getAttachedMode()) {
+      if (flinkStreamEnv instanceof RemoteStreamEnvironment) {
+        ((RemoteStreamEnvironment) flinkStreamEnv)
+                .getClientConfiguration()
+                .set(DeploymentOptions.ATTACHED, options.getAttachedMode());
+      } else {
+        LOG.warn("Detached mode is only supported in RemoteStreamEnvironment for streaming");
+      }
     }
 
     // default to event time
