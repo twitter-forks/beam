@@ -50,6 +50,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+<<<<<<< HEAD
 # [2.46.0] - Unreleased
 
 ## Highlights
