@@ -36,6 +36,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Beam {@link
@@ -230,12 +232,23 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
         return TypeSerializerSchemaCompatibility.incompatible();
       }
 
-      if (!this.serializer.pipelineOptions.toString().equals(coderTypeSerializer.pipelineOptions.toString())) {
+      if (this.serializer.coder.getCoderArguments().size() !=  coderTypeSerializer.coder.getCoderArguments().size()) {
+        return TypeSerializerSchemaCompatibility.incompatible();
+      }
+
+      if (!getCoderArguments(this.serializer.coder.getCoderArguments()).equals(getCoderArguments(coderTypeSerializer.coder.getCoderArguments()))) {
         return TypeSerializerSchemaCompatibility.incompatible();
       }
 
       return TypeSerializerSchemaCompatibility.compatibleAsIs();
     }
+  }
+
+  private static List<String> getCoderArguments(List<? extends Coder<?>> coderArgList) {
+    return coderArgList.stream()
+        .map(coder -> coder.getEncodedTypeDescriptor().getType().getTypeName())
+        .sorted()
+        .collect(Collectors.toList());
   }
 
   @Override
