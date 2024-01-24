@@ -48,7 +48,7 @@ public abstract class StageInfo {
         StreamingStepMetricsContainer.createRegistry(),
         new StreamingModeExecutionStateRegistry(worker),
         deltaCounters,
-            cumulativeCounters,
+        cumulativeCounters,
         deltaCounters.longSum(
             DataflowSystemMetrics.StreamingPerStageSystemCounterNames.THROTTLED_MSECS.counterName(
                 nameContext)),
@@ -58,14 +58,18 @@ public abstract class StageInfo {
         deltaCounters.longSum(
             DataflowSystemMetrics.StreamingPerStageSystemCounterNames.TIMER_PROCESSING_MSECS
                 .counterName(nameContext)),
-            deltaCounters.longSum(
-                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.STATE_FETCHES.counterName(nameContext)),
-            deltaCounters.distribution(
-                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.STATE_FETCH_LATENCY.counterName(nameContext)),
-            cumulativeCounters.longSum(
-                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.INPUT_WATERMARK_LAG.counterName(nameContext)),
-            cumulativeCounters.longSum(
-                    DataflowSystemMetrics.StreamingPerStageSystemCounterNames.OUTPUT_WATERMARK_LAG.counterName(nameContext)));
+        deltaCounters.longSum(
+            DataflowSystemMetrics.StreamingPerStageSystemCounterNames.STATE_FETCHES.counterName(
+                nameContext)),
+        deltaCounters.distribution(
+            DataflowSystemMetrics.StreamingPerStageSystemCounterNames.STATE_FETCH_LATENCY
+                .counterName(nameContext)),
+        cumulativeCounters.longSum(
+            DataflowSystemMetrics.StreamingPerStageSystemCounterNames.INPUT_WATERMARK_LAG
+                .counterName(nameContext)),
+        cumulativeCounters.longSum(
+            DataflowSystemMetrics.StreamingPerStageSystemCounterNames.OUTPUT_WATERMARK_LAG
+                .counterName(nameContext)));
   }
 
   public abstract String stageName();
@@ -130,7 +134,7 @@ public abstract class StageInfo {
     counterUpdates.addAll(
         deltaCounters().extractModifiedDeltaUpdates(DataflowCounterUpdateExtractor.INSTANCE));
     counterUpdates.addAll(
-            cumulativeCounters().extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
+        cumulativeCounters().extractUpdates(false, DataflowCounterUpdateExtractor.INSTANCE));
     return counterUpdates;
   }
 

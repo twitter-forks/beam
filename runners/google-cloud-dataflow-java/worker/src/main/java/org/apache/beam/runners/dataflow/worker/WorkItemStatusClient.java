@@ -50,9 +50,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.D
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;

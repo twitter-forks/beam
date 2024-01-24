@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
@@ -33,11 +37,6 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.io.EOFException;
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Beam {@link
@@ -166,8 +165,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     int CURRENT_VERSION = 2;
     CoderTypeSerializer<T> serializer;
 
-    public LegacySnapshot() {
-    }
+    public LegacySnapshot() {}
 
     public LegacySnapshot(CoderTypeSerializer<T> serializer) {
       this.serializer = serializer;
@@ -187,11 +185,12 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     }
 
     @Override
-    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+        throws IOException {
       switch (readVersion) {
         case 1:
           throw new UnsupportedOperationException(
-                  String.format("No longer supported version [%d].", readVersion));
+              String.format("No longer supported version [%d].", readVersion));
         case 2:
           try {
             int serializerBytes = in.readInt();
@@ -211,13 +210,14 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     public TypeSerializer<T> restoreSerializer() {
       if (serializer == null) {
         throw new IllegalStateException(
-                "Trying to restore the prior serializer but the prior serializer has not been set.");
+            "Trying to restore the prior serializer but the prior serializer has not been set.");
       }
       return this.serializer;
     }
 
     @Override
-    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+        TypeSerializer<T> newSerializer) {
       if (newSerializer.getClass() != this.getClass().getDeclaringClass()) {
         return TypeSerializerSchemaCompatibility.incompatible();
       }
@@ -228,15 +228,22 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
         return TypeSerializerSchemaCompatibility.incompatible();
       }
 
-      if (!this.serializer.coder.getEncodedTypeDescriptor().getType().getTypeName().equals(coderTypeSerializer.coder.getEncodedTypeDescriptor().getType().getTypeName())) {
+      if (!this.serializer
+          .coder
+          .getEncodedTypeDescriptor()
+          .getType()
+          .getTypeName()
+          .equals(coderTypeSerializer.coder.getEncodedTypeDescriptor().getType().getTypeName())) {
         return TypeSerializerSchemaCompatibility.incompatible();
       }
 
-      if (this.serializer.coder.getCoderArguments().size() !=  coderTypeSerializer.coder.getCoderArguments().size()) {
+      if (this.serializer.coder.getCoderArguments().size()
+          != coderTypeSerializer.coder.getCoderArguments().size()) {
         return TypeSerializerSchemaCompatibility.incompatible();
       }
 
-      if (!getCoderArguments(this.serializer.coder.getCoderArguments()).equals(getCoderArguments(coderTypeSerializer.coder.getCoderArguments()))) {
+      if (!getCoderArguments(this.serializer.coder.getCoderArguments())
+          .equals(getCoderArguments(coderTypeSerializer.coder.getCoderArguments()))) {
         return TypeSerializerSchemaCompatibility.incompatible();
       }
 
@@ -246,9 +253,9 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   private static List<String> getCoderArguments(List<? extends Coder<?>> coderArgList) {
     return coderArgList.stream()
-            .map(coder -> coder.getEncodedTypeDescriptor().getType().getTypeName())
-            .sorted()
-            .collect(Collectors.toList());
+        .map(coder -> coder.getEncodedTypeDescriptor().getType().getTypeName())
+        .sorted()
+        .collect(Collectors.toList());
   }
 
   @Override

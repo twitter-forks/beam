@@ -127,6 +127,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p54p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -142,9 +143,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableN
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -1005,11 +1004,15 @@ public class StreamingDataflowWorker {
               (String computation,
                   Instant inputDataWatermark,
                   Instant synchronizedProcessingTime,
-               Windmill.WorkItem workItem,
-               Collection<LatencyAttribution> getWorkStreamLatencies) -> {
+                  Windmill.WorkItem workItem,
+                  Collection<LatencyAttribution> getWorkStreamLatencies) -> {
                 DispatchStreamingWorkRunnable r =
-                        new DispatchStreamingWorkRunnable(
-                                computation, inputDataWatermark, synchronizedProcessingTime, workItem, getWorkStreamLatencies);
+                    new DispatchStreamingWorkRunnable(
+                        computation,
+                        inputDataWatermark,
+                        synchronizedProcessingTime,
+                        workItem,
+                        getWorkStreamLatencies);
                 dispatchExecutor.execute(r, workItem.getSerializedSize());
               });
       try {
@@ -1056,7 +1059,7 @@ public class StreamingDataflowWorker {
           inputDataWatermark,
           synchronizedProcessingTime,
           workItem,
-              workStreamLatencies);
+          workStreamLatencies);
     }
   }
 
@@ -1192,7 +1195,7 @@ public class StreamingDataflowWorker {
 
               publishTopologyUpdate(mapTask.getSystemName(), userName);
 
-              return  StageInfo.create(s, mapTask.getSystemName(), userName, this);
+              return StageInfo.create(s, mapTask.getSystemName(), userName, this);
             });
 
     ExecutionState executionState = null;
@@ -1316,9 +1319,9 @@ public class StreamingDataflowWorker {
                   }
                 };
               },
-                  stageInfo.stateFetches(),
-                  itemsPerStateFetch,
-                  stageInfo.stateFetchLatency());
+              stageInfo.stateFetches(),
+              itemsPerStateFetch,
+              stageInfo.stateFetchLatency());
 
       SideInputStateFetcher localSideInputStateFetcher = sideInputStateFetcher.byteTrackingView();
 
@@ -1662,9 +1665,9 @@ public class StreamingDataflowWorker {
   }
 
   private void streamingCommitLoop(int numCommitStreams) {
-      WindmillStreamPool<CommitWorkStream> streamPool =
-              WindmillStreamPool.create(
-                      numCommitStreams, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream);
+    WindmillStreamPool<CommitWorkStream> streamPool =
+        WindmillStreamPool.create(
+            numCommitStreams, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream);
     Commit initialCommit = null;
     while (running.get()) {
       if (initialCommit == null) {

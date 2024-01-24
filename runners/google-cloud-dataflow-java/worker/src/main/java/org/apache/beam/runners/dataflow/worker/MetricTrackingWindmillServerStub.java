@@ -50,7 +50,7 @@ import org.joda.time.Duration;
 })
 public class MetricTrackingWindmillServerStub {
 
-  private static final int MAX_READS_PER_BATCH = 60;  
+  private static final int MAX_READS_PER_BATCH = 60;
   private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
   private final AtomicInteger activeSideInputs = new AtomicInteger();
   private final AtomicInteger activeStateReads = new AtomicInteger();

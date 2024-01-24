@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import java.nio.ByteBuffer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 
 class ByteArrayReader {
   private static final ByteBuffer EMPTY = ByteBuffer.allocate(0).asReadOnlyBuffer();

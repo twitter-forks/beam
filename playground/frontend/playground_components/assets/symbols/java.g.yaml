@@ -1,6 +1,7 @@
 AbstractBeamCalcRel: 
   methods: 
   - beamComputeSelfCost
+  - deepEquals
   - estimateNodeStats
   - getLimitCountOfSortRel
   - isInputSortRelAndLimitOnly
@@ -13,11 +14,16 @@ AbstractSimulator:
   - resultsPerWindow
 ActionFactory: 
   methods: 
+  - changeStreamAction
   - childPartitionsRecordAction
   - dataChangeRecordAction
   - detectNewPartitionsAction
+  - generateInitialPartitionsAction
   - heartbeatRecordAction
+  - processNewPartitionsAction
   - queryChangeStreamAction
+  - readChangeStreamPartitionAction
+  - resumeFromPreviousPipelineAction
 AdaptableCollector: 
   methods: 
   - asContext
@@ -157,6 +163,12 @@ AnnotateText:
   - processElement
   - setFeatures
   - setLanguageHint
+ApiIOError: 
+  methods: 
+  - getMessage
+  - getObservedTimestamp
+  - getRequestAsJsonString
+  - getStackTrace
 ApiSurface: 
   methods: 
   - classesInPackage
@@ -292,6 +304,12 @@ ArrowConversion:
   - rowsFromSerializedRecordBatch
   - toBeamSchema
   - visit
+ArtifactService: 
+  methods: 
+  - close
+  - getArtifact
+  - resolveArtifacts
+  - shutdown
 AsJsons: 
   methods: 
   - apply
@@ -308,6 +326,17 @@ AssignEventTime:
   - of
   - output
   - using
+AsyncBatchWriteHandler: 
+  methods: 
+  - accept
+  - batchWrite
+  - byId
+  - byPosition
+  - checkForAsyncFailure
+  - hasErrored
+  - requestsInProgress
+  - reset
+  - waitForCompletion
 AtomicCoder: 
   methods: 
   - equals
@@ -417,23 +446,39 @@ AvroCoder:
   - decode
   - encode
   - equals
-  - fromLong
+  - generic
   - get
   - getCoderProvider
-  - getConvertedType
+  - getDatumFactory
   - getEncodedTypeDescriptor
-  - getLogicalTypeName
   - getSchema
   - getType
   - hashCode
   - initialValue
   - of
-  - toLong
+  - reflect
+  - specific
   - useReflectApi
   - verifyDeterministic
+AvroDatumFactory: 
+  methods: 
+  - apply
+  - equals
+  - generic
+  - getType
+  - hashCode
+  - of
+  - reflect
+  - specific
+  properties: 
+  - INSTANCE
 AvroGenericCoder: 
   methods: 
   - of
+AvroGenericRecordToStorageApiProto: 
+  methods: 
+  - messageFromGenericRecord
+  - protoTableSchemaFromAvroSchema
 AvroIO: 
   methods: 
   - apply
@@ -452,6 +497,8 @@ AvroIO:
   - readFiles
   - readFilesGenericRecords
   - readGenericRecords
+  - setGenericRecords
+  - setSchema
   - sink
   - sinkViaGenericRecords
   - to
@@ -462,6 +509,7 @@ AvroIO:
   - withCoder
   - withDatumReaderFactory
   - withDatumWriterFactory
+  - withDesiredBundleSizeBytes
   - withEmptyMatchTreatment
   - withFileExceptionHandler
   - withFormatFunction
@@ -483,9 +531,32 @@ AvroIO:
   - writeCustomType
   - writeCustomTypeToGenericRecords
   - writeGenericRecords
+AvroJavaTimeConversions: 
+  methods: 
+  - fromInt
+  - fromLong
+  - getConvertedType
+  - getLogicalTypeName
+  - getRecommendedSchema
+  - toInt
+  - toLong
+  - validate
+AvroJodaTimeConversions: 
+  methods: 
+  - fromInt
+  - fromLong
+  - getConvertedType
+  - getLogicalTypeName
+  - toInt
+  - toLong
 AvroPayloadSerializerProvider: 
   methods: 
   - getSerializer
+  - identifier
+AvroReadSchemaTransformFormatProvider: 
+  methods: 
+  - buildTransform
+  - expand
   - identifier
 AvroRecordSchema: 
   methods: 
@@ -504,6 +575,9 @@ AvroSchemaIOProvider:
   - isBounded
   - requiresDataSchema
   - schema
+AvroSchemaInformationProvider: 
+  methods: 
+  - getConvertedSchemaInformation
 AvroSink: 
   methods: 
   - createWriteOperation
@@ -533,6 +607,7 @@ AvroSource:
   - seek
   - tell
   - validate
+  - withCoder
   - withDatumReaderFactory
   - withEmptyMatchTreatment
   - withMinBundleSize
@@ -544,8 +619,10 @@ AvroTableProvider:
   - getTableType
 AvroUtils: 
   methods: 
+  - addLogicalTypeConversions
   - apply
   - convertAvroFieldStrict
+  - create
   - createGetterConversions
   - createSetterConversions
   - createTypeConversion
@@ -564,7 +641,9 @@ AvroUtils:
   - getSchema
   - getSize
   - getToRowFunction
+  - getType
   - hashCode
+  - isNullable
   - schemaCoder
   - toAvroField
   - toAvroSchema
@@ -582,18 +661,20 @@ AvroWriteRequest:
   methods: 
   - getElement
   - getSchema
+AvroWriteSchemaTransformFormatProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
 AwsBuilderFactory: {}
 AwsCoders: 
   methods: 
-  - awsResponseMetadata
   - decode
   - encode
   - of
   - responseMetadata
   - sdkHttpMetadata
   - sdkHttpMetadataWithoutHeaders
-  - sdkHttpResponse
-  - sdkHttpResponseWithoutHeaders
   - verifyDeterministic
 AwsModule: 
   methods: 
@@ -660,6 +741,30 @@ BackOffAdapter:
 BackOffUtils: 
   methods: 
   - next
+BadRecord: 
+  methods: 
+  - addCoderAndEncodedRecord
+  - addExceptionStackTrace
+  - addHumanReadableJson
+  - build
+  - builder
+  - fromExceptionInformation
+  - getCoder
+  - getDescription
+  - getEncodedRecord
+  - getException
+  - getExceptionStacktrace
+  - getFailure
+  - getHumanReadableJsonRecord
+  - getRecord
+  - setCoder
+  - setDescription
+  - setEncodedRecord
+  - setException
+  - setExceptionStacktrace
+  - setFailure
+  - setHumanReadableJsonRecord
+  - setRecord
 BagUserState: 
   methods: 
   - append
@@ -675,11 +780,6 @@ BaseBeamTable:
 BasicDynamoDBProvider: 
   methods: 
   - createDynamoDB
-BasicDynamoDbClientProvider: 
-  methods: 
-  - equals
-  - getDynamoDbClient
-  - hashCode
 BatchContextImpl: 
   methods: 
   - addProperties
@@ -945,7 +1045,7 @@ BeamFnControlClient:
   - onError
   - onNext
   - sendInstructionResponse
-  - waitForTermination
+  - terminationFuture
 BeamFnDataGrpcClient: 
   methods: 
   - createOutboundAggregator
@@ -961,28 +1061,8 @@ BeamFnDataGrpcMultiplexer:
   - onNext
   - registerConsumer
   - toString
-BeamFnDataGrpcMultiplexer2: 
-  methods: 
-  - close
-  - getInboundObserver
-  - getOutboundObserver
-  - onCompleted
-  - onError
-  - onNext
-  - registerConsumer
-  - toString
   - unregisterConsumer
 BeamFnDataInboundObserver: 
-  methods: 
-  - accept
-  - awaitCompletion
-  - cancel
-  - complete
-  - fail
-  - forConsumer
-  - isDone
-  - runWhenComplete
-BeamFnDataInboundObserver2: 
   methods: 
   - accept
   - awaitCompletion
@@ -1016,11 +1096,6 @@ BeamFnDataOutboundAggregator:
   - DATA_BUFFER_TIME_LIMIT_MS
   - DEFAULT_BUFFER_LIMIT_BYTES
   - DEFAULT_BUFFER_LIMIT_TIME_MS
-BeamFnDataOutboundObserver: 
-  methods: 
-  - accept
-  - close
-  - flush
 BeamFnDataReadRunner: 
   methods: 
   - blockTillReadFinishes
@@ -1045,13 +1120,16 @@ BeamFnLoggingClient:
   methods: 
   - beforeStart
   - close
+  - createAndStart
+  - drainQueueToStream
   - flush
+  - hardClose
   - onCompleted
   - onError
   - onNext
   - publish
-  - run
-  - setProcessBundleHandler
+  - softClose
+  - terminationFuture
   - toString
 BeamFnLoggingClientBenchmark: 
   methods: 
@@ -1062,6 +1140,8 @@ BeamFnLoggingClientBenchmark:
   - tearDown
   - testLogging
   - testLoggingWithAllOptionalParameters
+  - testLoggingWithCustomData
+  - testLoggingWithQuotaEvent
   - testSkippedLogging
   properties: 
   - loggingClient
@@ -1070,7 +1150,10 @@ BeamFnLoggingClientBenchmark:
 BeamFnLoggingMDC: 
   methods: 
   - getInstructionId
+  - getStateTracker
+  - reset
   - setInstructionId
+  - setStateTracker
 BeamFnStateGrpcClientCache: 
   methods: 
   - forApiServiceDescriptor
@@ -1165,9 +1248,11 @@ BeamJoinRel:
 BeamJoinTransforms: 
   methods: 
   - expand
+  - finishBundle
   - getJoinColumns
   - processElement
   - setup
+  - startBundle
   - teardown
 BeamKafkaCSVTable: 
   methods: 
@@ -1332,6 +1417,279 @@ BeamSqlParser:
   properties: 
   - DDL_EXECUTOR
   - FACTORY
+BeamSqlParserImpl: 
+  methods: 
+  - AllOrDistinct
+  - Arg
+  - Arg0
+  - Array
+  - ArrayConstructor
+  - AtomicRowExpression
+  - BinaryMultisetOperator
+  - BinaryQueryOperator
+  - BinaryRowOperator
+  - BuiltinFunctionCall
+  - CaseExpression
+  - CharacterTypeName
+  - CollateClause
+  - CollectionsTypeName
+  - ColumnType
+  - CommaSeparatedSqlHints
+  - CompoundIdentifier
+  - CompoundIdentifierType
+  - CompoundIdentifierTypeCommaList
+  - CompoundTableIdentifier
+  - ContextVariable
+  - CursorExpression
+  - DataType
+  - DateTimeLiteral
+  - DateTimeTypeName
+  - Day
+  - Default
+  - DynamicParam
+  - ExplainDepth
+  - ExplainDetailLevel
+  - ExplicitTable
+  - Expression
+  - Expression2
+  - Expression2b
+  - Expression3
+  - ExpressionCommaList
+  - ExpressionCommaList2
+  - ExtendList
+  - ExtendedTableRef
+  - Field
+  - FieldListAngular
+  - FieldListBody
+  - FieldListParens
+  - FieldNameTypeCommaList
+  - FieldType
+  - FloorCeilOptions
+  - FromClause
+  - FunctionName
+  - FunctionParameterList
+  - GroupByOpt
+  - GroupByWindowingCall
+  - GroupingElement
+  - GroupingElementList
+  - HavingOpt
+  - Hour
+  - Identifier
+  - IdentifierSegment
+  - IfExistsOpt
+  - IfNotExistsOpt
+  - IntLiteral
+  - IntervalLiteral
+  - IntervalLiteralOrExpression
+  - IntervalQualifier
+  - IntervalQualifierStart
+  - JdbcFunctionCall
+  - JdbcOdbcDataType
+  - JdbcOdbcDataTypeName
+  - JoinTable
+  - JoinType
+  - JsonApiCommonSyntax
+  - JsonArrayAggFunctionCall
+  - JsonArrayAggOrderByClause
+  - JsonArrayFunctionCall
+  - JsonConstructorNullClause
+  - JsonExistsErrorBehavior
+  - JsonExistsFunctionCall
+  - JsonInputClause
+  - JsonName
+  - JsonNameAndValue
+  - JsonObjectAggFunctionCall
+  - JsonObjectFunctionCall
+  - JsonOutputClause
+  - JsonPathSpec
+  - JsonQueryEmptyOrErrorBehavior
+  - JsonQueryFunctionCall
+  - JsonQueryWrapperBehavior
+  - JsonRepresentation
+  - JsonReturningClause
+  - JsonValueEmptyOrErrorBehavior
+  - JsonValueFunctionCall
+  - KeyValueOption
+  - LeafQuery
+  - LeafQueryOrExpr
+  - Literal
+  - LiteralOrIntervalExpression
+  - Map
+  - MapConstructor
+  - MatchRecognize
+  - MatchRecognizeCallWithModifier
+  - MatchRecognizeFunctionCall
+  - MatchRecognizeNavigationLogical
+  - MatchRecognizeNavigationPhysical
+  - MeasureColumn
+  - MeasureColumnCommaList
+  - Minute
+  - Month
+  - MultisetConstructor
+  - NamedCall
+  - NamedFunctionCall
+  - NamedRoutineCall
+  - Natural
+  - NewSpecification
+  - NonIntervalLiteral
+  - NonReservedJdbcFunctionName
+  - NonReservedKeyWord
+  - NonReservedKeyWord0of3
+  - NonReservedKeyWord1of3
+  - NonReservedKeyWord2of3
+  - NullTreatment
+  - NullableOptDefaultFalse
+  - NullableOptDefaultTrue
+  - NumericLiteral
+  - Option
+  - OptionValue
+  - Options
+  - OrderBy
+  - OrderItem
+  - OrderedQueryOrExpr
+  - ParenthesizedCompoundIdentifierList
+  - ParenthesizedExpression
+  - ParenthesizedKeyValueOptionCommaList
+  - ParenthesizedLiteralOptionCommaList
+  - ParenthesizedQueryOrCommaList
+  - ParenthesizedQueryOrCommaListWithDefault
+  - ParenthesizedSimpleIdentifierList
+  - PatternDefinition
+  - PatternDefinitionCommaList
+  - PatternExpression
+  - PatternFactor
+  - PatternPrimary
+  - PatternTerm
+  - PeriodConstructor
+  - Pivot
+  - PivotAgg
+  - PivotValue
+  - PostfixRowOperator
+  - PrecisionOpt
+  - PrefixRowOperator
+  - QueryOrExpr
+  - ReInit
+  - ReservedFunctionName
+  - Row
+  - RowConstructor
+  - RowConstructorList
+  - RowExpressionExtension
+  - RowFields
+  - RowTypeName
+  - Scope
+  - Second
+  - SelectExpression
+  - SelectItem
+  - SelectList
+  - SequenceExpression
+  - SimpleIdentifier
+  - SimpleIdentifierCommaList
+  - SimpleIdentifierFromStringLiteral
+  - SimpleIdentifierOrList
+  - SimpleType
+  - Snapshot
+  - SpecialLiteral
+  - SqlAlter
+  - SqlCreate
+  - SqlCreateExternalTable
+  - SqlCreateFunction
+  - SqlCreateTableNotSupportedMessage
+  - SqlDelete
+  - SqlDescribe
+  - SqlDrop
+  - SqlDropTable
+  - SqlExplain
+  - SqlExpressionEof
+  - SqlInsert
+  - SqlInsertKeywords
+  - SqlMerge
+  - SqlProcedureCall
+  - SqlQueryEof
+  - SqlQueryOrDml
+  - SqlSelect
+  - SqlSelectKeywords
+  - SqlSetOption
+  - SqlSetOptionBeam
+  - SqlStmt
+  - SqlStmtEof
+  - SqlStmtList
+  - SqlTypeName
+  - SqlTypeName1
+  - SqlTypeName2
+  - SqlTypeName3
+  - SqlUpdate
+  - StandardFloorCeilOptions
+  - StringAggFunctionCall
+  - StringLiteral
+  - SubsetDefinition
+  - SubsetDefinitionCommaList
+  - TableConstructor
+  - TableFunctionCall
+  - TableIdentifierSegment
+  - TableOverOpt
+  - TableRef
+  - TableRef2
+  - TableRefWithHintsOpt
+  - TimeUnit
+  - TimeZoneOpt
+  - TimestampAddFunctionCall
+  - TimestampDiffFunctionCall
+  - TimestampInterval
+  - TypeName
+  - Unpivot
+  - UnpivotValue
+  - UnquantifiedFunctionParameterList
+  - UnsignedIntLiteral
+  - UnsignedNumericLiteral
+  - UnsignedNumericLiteralOrParam
+  - UnusedExtension
+  - WhenMatchedClause
+  - WhenNotMatchedClause
+  - WhereOpt
+  - WindowOpt
+  - WindowRange
+  - WindowSpecification
+  - WithItem
+  - WithList
+  - Year
+  - comp
+  - disable_tracing
+  - enable_tracing
+  - generateParseException
+  - getMetadata
+  - getNextToken
+  - getParser
+  - getToken
+  - normalizeException
+  - nullTreatment
+  - parseSqlExpressionEof
+  - parseSqlStmtEof
+  - parseSqlStmtList
+  - periodOperator
+  - setConformance
+  - setIdentifierMaxLength
+  - setQuotedCasing
+  - setTabSize
+  - setUnquotedCasing
+  - switchTo
+  - withinDistinct
+  - withinGroup
+  properties: 
+  - FACTORY
+  - lookingAhead
+  - token
+  - token_source
+BeamSqlParserImplTokenManager: 
+  methods: 
+  - ReInit
+  - SwitchTo
+  - getNextToken
+  - setDebugStream
+  properties: 
+  - debugStream
+  - jjnewLexState
+  - jjstrLiteralImages
+  - lexStateNames
 BeamSqlPipelineOptionsRegistrar: 
   methods: 
   - getPipelineOptions
@@ -1608,7 +1966,6 @@ BigQueryCoderProviderRegistrar:
 BigQueryDirectReadSchemaTransformProvider: 
   methods: 
   - build
-  - buildTransform
   - builder
   - expand
   - getQuery
@@ -1629,6 +1986,41 @@ BigQueryDlqProvider:
   - expand
   - identifier
   - newDlqTransform
+BigQueryExportReadSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getQuery
+  - getQueryLocation
+  - getTableSpec
+  - getUseStandardSql
+  - setQuery
+  - setQueryLocation
+  - setTableSpec
+  - setUseStandardSql
+BigQueryExportReadSchemaTransformProvider: 
+  methods: 
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+BigQueryFileLoadsWriteSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getCreateDisposition
+  - getTableSpec
+  - getWriteDisposition
+  - setCreateDisposition
+  - setTableSpec
+  - setWriteDisposition
+BigQueryFileLoadsWriteSchemaTransformProvider: 
+  methods: 
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - validate
 BigQueryFilter: 
   methods: 
   - getNotSupported
@@ -1640,6 +2032,7 @@ BigQueryHelpers:
   - apply
   - fromJsonString
   - getNumRows
+  - getTable
   - parseTableSpec
   - parseTableUrn
   - stripPartitionDecorator
@@ -1653,9 +2046,11 @@ BigQueryIO:
   methods: 
   - actuateProjectionPushdown
   - apply
+  - applyRowMutations
   - expand
   - from
   - fromQuery
+  - getMethod
   - getTable
   - getTableProvider
   - ignoreInsertIds
@@ -1685,7 +2080,9 @@ BigQueryIO:
   - withCoder
   - withCreateDisposition
   - withCustomGcsTempLocation
+  - withDefaultMissingValueInterpretation
   - withDeterministicRecordIdFn
+  - withDirectWriteProtos
   - withExtendedErrorInfo
   - withFailedInsertRetryPolicy
   - withFormat
@@ -1697,12 +2094,16 @@ BigQueryIO:
   - withLoadJobProjectId
   - withMaxBytesPerPartition
   - withMaxFilesPerBundle
+  - withMaxRetryJobs
   - withMethod
   - withNumFileShards
   - withNumStorageWriteApiStreams
+  - withPrimaryKey
+  - withPropagateSuccessfulStorageApiWrites
   - withQueryLocation
   - withQueryPriority
   - withQueryTempDataset
+  - withRowMutationInformationFn
   - withRowRestriction
   - withSchema
   - withSchemaFromView
@@ -1719,10 +2120,22 @@ BigQueryIO:
   - withoutResultFlattening
   - withoutValidation
   - write
+  - writeGenericRecords
+  - writeProtos
   - writeTableRows
   properties: 
   - BIGQUERY_JOB_TEMPLATE
   - INSTANCE
+BigQueryIOTranslation: 
+  methods: 
+  - fromConfigRow
+  - getTransformPayloadTranslators
+  - getUrn
+  - toConfigRow
+  - translate
+  properties: 
+  - BIGQUERY_READ_TRANSFORM_URN
+  - BIGQUERY_WRITE_TRANSFORM_URN
 BigQueryInsertError: 
   methods: 
   - equals
@@ -1749,43 +2162,67 @@ BigQuerySchemaIOProvider:
   - requiresDataSchema
   - schema
 BigQuerySchemaRetrievalException: {}
-BigQuerySchemaTransformReadConfiguration: 
+BigQueryServicesImpl: 
   methods: 
-  - build
-  - builder
-  - getQuery
-  - getQueryLocation
-  - getTableSpec
-  - getUseStandardSql
-  - setQuery
-  - setQueryLocation
-  - setTableSpec
-  - setUseStandardSql
-BigQuerySchemaTransformReadProvider: 
+  - appendRows
+  - call
+  - cancel
+  - close
+  - commitWriteStreams
+  - createBigQueryClientCustomErrors
+  - createDataset
+  - createReadSession
+  - createTable
+  - createWriteStream
+  - deleteDataset
+  - deleteTable
+  - dryRunQuery
+  - finalizeWriteStream
+  - flush
+  - getDataset
+  - getDatasetService
+  - getInflightWaitSeconds
+  - getJob
+  - getJobService
+  - getStorageClient
+  - getStreamAppendClient
+  - getTable
+  - getUpdatedSchema
+  - getWriteStream
+  - getWriteStreamService
+  - insertAll
+  - isTableEmpty
+  - iterator
+  - onRetryAttempt
+  - patchTableDescription
+  - pin
+  - pollJob
+  - readRows
+  - splitReadStream
+  - startCopyJob
+  - startExtractJob
+  - startLoadJob
+  - startQueryJob
+  - submit
+  - unpin
+  properties: 
+  - throttlingMsecs
+BigQuerySinkMetrics: 
   methods: 
-  - buildTransform
-  - expand
-  - identifier
-  - inputCollectionNames
-  - outputCollectionNames
-BigQuerySchemaTransformWriteConfiguration: 
-  methods: 
-  - build
-  - builder
-  - getCreateDisposition
-  - getTableSpec
-  - getWriteDisposition
-  - setCreateDisposition
-  - setTableSpec
-  - setWriteDisposition
-BigQuerySchemaTransformWriteProvider: 
-  methods: 
-  - buildTransform
-  - expand
-  - identifier
-  - inputCollectionNames
-  - outputCollectionNames
-  - validate
+  - appendRowsRowStatusCounter
+  - create
+  - getBaseName
+  - getMetricLabels
+  - parseMetricName
+  - reportFailedRPCMetrics
+  - reportSuccessfulRpcMetrics
+  - setSupportMetricsDeletion
+  - throttledTimeCounter
+  - throwableToGRPCCodeString
+  properties: 
+  - METRICS_NAMESPACE
+  - OK
+  - PAYLOAD_TOO_LARGE
 BigQueryStorageApiInsertError: 
   methods: 
   - getErrorMessage
@@ -1804,10 +2241,15 @@ BigQueryStorageTableSource:
 BigQueryStorageWriteApiSchemaTransformProvider: 
   methods: 
   - build
-  - buildTransform
   - builder
+  - description
   - expand
+  - finish
+  - getAutoSharding
   - getCreateDisposition
+  - getErrorHandling
+  - getNumStreams
+  - getOutput
   - getTable
   - getTriggeringFrequencySeconds
   - getUseAtLeastOnceSemantics
@@ -1815,8 +2257,13 @@ BigQueryStorageWriteApiSchemaTransformProvider:
   - identifier
   - inputCollectionNames
   - outputCollectionNames
+  - process
+  - setAutoSharding
   - setBigQueryServices
   - setCreateDisposition
+  - setErrorHandling
+  - setNumStreams
+  - setOutput
   - setTable
   - setTriggeringFrequencySeconds
   - setUseAtLeastOnceSemantics
@@ -1836,7 +2283,6 @@ BigQueryUtils:
   - fromTableSchema
   - getInferMaps
   - getTruncateTimestamps
-  - hashSchemaDescriptorDeterministic
   - readCallMetric
   - setInferMaps
   - setTruncateTimestamps
@@ -1847,6 +2293,7 @@ BigQueryUtils:
   - toTableReference
   - toTableRow
   - toTableSchema
+  - toTableSpec
   - writeCallMetric
 BigqueryClient: 
   methods: 
@@ -1861,6 +2308,7 @@ BigqueryClient:
   - queryUnflattened
   - queryWithRetries
   - queryWithRetriesUsingStandardSql
+  - updateTableSchema
 BigqueryMatcher: 
   methods: 
   - create
@@ -1873,10 +2321,31 @@ BigqueryMatcher:
   - getQuery
   - getUsingStandardSql
   - queryResultHasChecksum
+BigtableChangeStreamAccessor: 
+  methods: 
+  - close
+  - getDataClient
+  - getInstanceAdminClient
+  - getOrCreate
+  - getTableAdminClient
+BigtableConfig: 
+  methods: 
+  - getAppProfileId
+  - getBigtableClientOverride
+  - getInstanceId
+  - getProjectId
+  - toString
+  - withBigtableOptions
+  - withBigtableOptionsConfigurator
+  - withEmulator
+  - withInstanceId
+  - withProjectId
+  - withValidate
 BigtableIO: 
   methods: 
   - advance
   - close
+  - createOrUpdateReadChangeStreamMetadataTable
   - createReader
   - expand
   - finishBundle
@@ -1888,32 +2357,68 @@ BigtableIO:
   - getMaxBufferElementCount
   - getOutputCoder
   - getRanges
+  - getReadOptions
   - getRowFilter
   - getSplitPointsConsumed
   - getTableId
   - populateDisplayData
   - processElement
   - read
+  - readChangeStream
   - split
   - splitAtFraction
   - start
   - startBundle
-  - tearDown
   - toString
   - validate
+  - withAppProfileId
+  - withAttemptTimeout
   - withBigtableOptions
   - withBigtableOptionsConfigurator
+  - withChangeStreamName
+  - withCreateOrUpdateMetadataTable
   - withEmulator
+  - withExistingPipelineOptions
+  - withFlowControl
   - withInstanceId
   - withKeyRange
   - withKeyRanges
   - withMaxBufferElementCount
+  - withMaxBytesPerBatch
+  - withMaxElementsPerBatch
+  - withMaxOutstandingBytes
+  - withMaxOutstandingElements
+  - withMetadataTableAppProfileId
+  - withMetadataTableInstanceId
+  - withMetadataTableProjectId
+  - withMetadataTableTableId
+  - withOperationTimeout
   - withProjectId
   - withRowFilter
+  - withStartTime
   - withTableId
   - withWriteResults
   - withoutValidation
   - write
+BigtableReadSchemaTransformProvider: 
+  methods: 
+  - apply
+  - build
+  - builder
+  - expand
+  - getInstanceId
+  - getProjectId
+  - getTableId
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setInstanceId
+  - setProjectId
+  - setTableId
+  - validate
+  properties: 
+  - CELL_SCHEMA
+  - ROW_SCHEMA
 BigtableRowToBeamRow: 
   methods: 
   - apply
@@ -1950,6 +2455,22 @@ BigtableWriteResultCoder:
   - encode
   - getCoderProvider
   - of
+BigtableWriteSchemaTransformProvider: 
+  methods: 
+  - apply
+  - build
+  - builder
+  - expand
+  - getInstanceId
+  - getProjectId
+  - getTableId
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setInstanceId
+  - setProjectId
+  - setTableId
+  - validate
 BitSetCoder: 
   methods: 
   - consistentWithEquals
@@ -2122,6 +2643,7 @@ ByteBuddyUtils:
   - entrySet
   - equals
   - get
+  - getClassLoadingStrategy
   - getTransformingMap
   - hashCode
   - isEmpty
@@ -2210,6 +2732,7 @@ ByteStringCoder:
   - verifyDeterministic
 ByteStringOutputStream: 
   methods: 
+  - consumePrefixToByteString
   - size
   - toByteString
   - toByteStringAndReset
@@ -2243,6 +2766,18 @@ ByteStringOutputStreamBenchmark:
   - testSdkCoreByteStringOutputStreamManyTinyWrites
   properties: 
   - src
+ByteStringRangeHelper: 
+  methods: 
+  - compare
+  - coverSameKeySpace
+  - doPartitionsOverlap
+  - formatByteStringRange
+  - getIntersectingPartition
+  - getMissingPartitionsFrom
+  - getMissingPartitionsFromEntireKeySpace
+  - getOverlappingPartitions
+  - isValidPartition
+  - partitionsToString
 BytesThroughputEstimator: 
   methods: 
   - addBytes
@@ -2326,6 +2861,7 @@ Caches:
   - peek
   - put
   - remove
+  - shouldUpdateOnSizeChange
   - subCache
   - toString
   - weigh
@@ -2511,6 +3047,7 @@ CassandraIO:
   - withQuery
   - withReadTimeout
   - withRingRanges
+  - withSsl
   - withTable
   - withUsername
   - write
@@ -2567,36 +3104,70 @@ CdapIO:
   - withPluginConfig
   - withPullFrequencySec
   - withStartOffset
+  - withStartPollTimeoutSec
   - withValueClass
   - write
+ChangeStreamAction: 
+  methods: 
+  - run
+ChangeStreamContinuationTokenHelper: 
+  methods: 
+  - getTokenWithCorrectPartition
 ChangeStreamDao: 
   methods: 
   - changeStreamQuery
+  - generateInitialChangeStreamPartitions
+  - readChangeStreamPartition
 ChangeStreamMetrics: 
   methods: 
   - decActivePartitionReadCounter
+  - decPartitionStreamCount
   - incActivePartitionReadCounter
+  - incChangeStreamMutationGcCounter
+  - incChangeStreamMutationUserCounter
+  - incClosestreamCount
   - incDataRecordCounter
+  - incHeartbeatCount
   - incHeartbeatRecordCount
+  - incListPartitionsCount
+  - incOrphanedNewPartitionCleanedCount
+  - incPartitionMergeCount
+  - incPartitionReconciledWithTokenCount
+  - incPartitionReconciledWithoutTokenCount
   - incPartitionRecordCount
   - incPartitionRecordMergeCount
   - incPartitionRecordSplitCount
+  - incPartitionSplitCount
+  - incPartitionStreamCount
   - incQueryCounter
   - updateDataRecordCommittedToEmitted
   - updatePartitionCreatedToScheduled
   - updatePartitionScheduledToRunning
+  - updateProcessingDelayFromCommitTimestamp
   properties: 
   - ACTIVE_PARTITION_READ_COUNT
+  - CHANGE_STREAM_MUTATION_GC_COUNT
+  - CHANGE_STREAM_MUTATION_USER_COUNT
+  - CLOSESTREAM_COUNT
   - DATA_RECORD_COMMITTED_TO_EMITTED_0MS_TO_1000MS_COUNT
   - DATA_RECORD_COMMITTED_TO_EMITTED_1000MS_TO_3000MS_COUNT
   - DATA_RECORD_COMMITTED_TO_EMITTED_3000MS_TO_INF_COUNT
   - DATA_RECORD_COUNT
+  - HEARTBEAT_COUNT
   - HEARTBEAT_RECORD_COUNT
+  - LIST_PARTITIONS_COUNT
+  - ORPHANED_NEW_PARTITION_CLEANED_COUNT
   - PARTITION_CREATED_TO_SCHEDULED_MS
+  - PARTITION_MERGE_COUNT
+  - PARTITION_RECONCILED_WITHOUT_TOKEN_COUNT
+  - PARTITION_RECONCILED_WITH_TOKEN_COUNT
   - PARTITION_RECORD_COUNT
   - PARTITION_RECORD_MERGE_COUNT
   - PARTITION_RECORD_SPLIT_COUNT
   - PARTITION_SCHEDULED_TO_RUNNING_MS
+  - PARTITION_SPLIT_COUNT
+  - PARTITION_STREAM_COUNT
+  - PROCESSING_DELAY_FROM_COMMIT_TIMESTAMP
   - QUERY_COUNT
 ChangeStreamRecordMapper: 
   methods: 
@@ -2658,6 +3229,10 @@ ChangeStreamsConstants:
   - MAX_INCLUSIVE_END_AT
   - SAMPLE_PARTITION
   - THROUGHPUT_WINDOW_SECONDS
+CheckStopReadingFnWrapper: 
+  methods: 
+  - apply
+  - of
 CheckpointMarkImpl: 
   methods: 
   - decode
@@ -2759,6 +3334,8 @@ ClientConfiguration:
   - region
   - retry
   - toBuilder
+  properties: 
+  - EMPTY
 CloudPubsubTransforms: 
   methods: 
   - ensureUsableAsCloudPubsub
@@ -2790,11 +3367,11 @@ CoGbkResult:
   - hasNext
   - hashCode
   - isEmpty
-  - iterator
   - next
   - observeAt
   - of
   - peek
+  - registerByteSizeObserver
   - toString
   - verifyDeterministic
   properties: 
@@ -2903,6 +3480,9 @@ CoderRegistry:
   - registerCoderForClass
   - registerCoderForType
   - registerCoderProvider
+CoderSizeEstimator: 
+  methods: 
+  - sizeOf
 CoderUtils: 
   methods: 
   - clone
@@ -2925,6 +3505,35 @@ ColumnType:
   - hashCode
   - isPrimaryKey
   - toString
+ColumnTypeParser: 
+  methods: 
+  - ReInit
+  - columnType
+  - defaultExpression
+  - disable_tracing
+  - enable_tracing
+  - fillInStackTrace
+  - generateParseException
+  - getNextToken
+  - getToken
+  - parse
+  - parseDefaultExpression
+  - trace_enabled
+  properties: 
+  - jj_nt
+  - token
+  - token_source
+ColumnTypeParserTokenManager: 
+  methods: 
+  - ReInit
+  - SwitchTo
+  - getNextToken
+  - setDebugStream
+  properties: 
+  - debugStream
+  - jjnewLexState
+  - jjstrLiteralImages
+  - lexStateNames
 Combine: 
   methods: 
   - accum
@@ -2939,6 +3548,7 @@ Combine:
   - equals
   - expand
   - extractOutput
+  - fewKeys
   - getAccumulatorCoder
   - getAdditionalInputs
   - getAppliedFn
@@ -3048,15 +3658,6 @@ CombineWithContext:
   - getPipelineOptions
   - mergeAccumulators
   - sideInput
-CompletableFutureInboundDataClient: 
-  methods: 
-  - awaitCompletion
-  - cancel
-  - complete
-  - create
-  - fail
-  - isDone
-  - runWhenComplete
 CompositeOperatorTranslator: 
   methods: 
   - canTranslate
@@ -3132,6 +3733,9 @@ ContextualTextIO:
   - withHintMatchesManyFiles
   - withMatchConfiguration
   - withRecordNumMetadata
+Controller: 
+  methods: 
+  - main
 ConversionContext: 
   methods: 
   - of
@@ -3151,6 +3755,23 @@ ConvertHelpers:
   properties: 
   - outputSchemaCoder
   - unboxedType
+CosmosIO: 
+  methods: 
+  - advance
+  - close
+  - createReader
+  - expand
+  - getCurrent
+  - getCurrentSource
+  - getEstimatedSizeBytes
+  - getOutputCoder
+  - read
+  - split
+  - start
+  - withCoder
+  - withContainer
+  - withDatabase
+  - withQuery
 Count: 
   methods: 
   - addInput
@@ -3198,6 +3819,8 @@ CountingSource:
   - close
   - createReader
   - createSourceForSubrange
+  - decode
+  - encode
   - equals
   - finalizeCheckpoint
   - getBytesPerOffset
@@ -3236,6 +3859,7 @@ CrashingRunner:
   - run
 Create: 
   methods: 
+  - alwaysUseRead
   - apply
   - close
   - createReader
@@ -3266,11 +3890,6 @@ CreateOptions:
   - mimeType
   - setExpectFileToNotExist
   - setMimeType
-CreateTableDestinations: 
-  methods: 
-  - expand
-  - processElement
-  - startBundle
 CreateTableHelpers: {}
 CreateTables: 
   methods: 
@@ -3310,10 +3929,43 @@ CrossLanguageConfiguration:
   - setTable
   - setUsername
   - setWarehouse
+CsvIO: 
+  methods: 
+  - expand
+  - populateDisplayData
+  - withCompression
+  - withNoSpilling
+  - withNumShards
+  - withShardTemplate
+  - withSuffix
+  - withTempDirectory
+  - withWindowedWrites
+  - withWritableByteChannelFactory
+  - withoutSharding
+  - write
+  - writeRows
+  properties: 
+  - VALID_FIELD_TYPE_SET
 CsvToRow: 
   methods: 
   - expand
   - getCsvFormat
+CsvWriteSchemaTransformFormatProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
+CsvWriteTransformProvider: 
+  methods: 
+  - build
+  - builder
+  - expand
+  - getPath
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setPath
+  - validate
 CustomCoder: 
   methods: 
   - getCoderArguments
@@ -3419,11 +4071,20 @@ DLPReidentifyText:
   - teardown
   properties: 
   - DLP_PAYLOAD_LIMIT_BYTES
+DLQRouter: 
+  methods: 
+  - expand
 DaoFactory: 
   methods: 
+  - close
   - getChangeStreamDao
+  - getChangeStreamName
+  - getMetadataTableAdminDao
+  - getMetadataTableDao
+  - getMetadataTableDebugString
   - getPartitionMetadataAdminDao
   - getPartitionMetadataDao
+  - getStreamTableDebugString
 DataCatalogPipelineOptionsRegistrar: 
   methods: 
   - getPipelineOptions
@@ -3470,6 +4131,11 @@ DataEndpoint:
   - getCoder
   - getReceiver
   - getTransformId
+DataSampler: 
+  methods: 
+  - create
+  - handleDataSampleRequest
+  - sampleOutput
 DataStoreV1SchemaIOProvider: 
   methods: 
   - buildReader
@@ -3626,7 +4292,6 @@ DebeziumIO:
 DebeziumReadSchemaTransformProvider: 
   methods: 
   - build
-  - buildTransform
   - builder
   - expand
   - getDatabase
@@ -3708,6 +4373,10 @@ DefaultFilenamePolicy:
   properties: 
   - DEFAULT_UNWINDOWED_SHARD_TEMPLATE
   - DEFAULT_WINDOWED_SHARD_TEMPLATE
+DefaultGoogleAdsClientFactory: 
+  methods: 
+  - getInstance
+  - newGoogleAdsClient
 DefaultPipelineOptionsRegistrar: 
   methods: 
   - getPipelineOptions
@@ -3752,6 +4421,7 @@ DelegatingHistogram:
   methods: 
   - getName
   - update
+Dependency: {}
 DequeCoder: 
   methods: 
   - consistentWithEquals
@@ -3770,11 +4440,23 @@ DetectNewPartitionsDoFn:
   - newTracker
   - newWatermarkEstimator
   - processElement
+  - restrictionTracker
   - setAveragePartitionBytesSize
   - setup
 DetectNewPartitionsRangeTracker: 
   methods: 
   - tryClaim
+DetectNewPartitionsState: 
+  methods: 
+  - equals
+  - getWatermark
+  - getWatermarkLastUpdated
+  - hashCode
+  - toString
+DetectNewPartitionsTracker: 
+  methods: 
+  - estimate
+  - trySplit
 DicomIO: 
   methods: 
   - expand
@@ -4163,6 +4845,7 @@ DynamicDestinations:
   - getSchema
   - getSideInputs
   - getTable
+  - getTableConstraints
   - sideInput
 DynamicFileDestinations: 
   methods: 
@@ -4187,16 +4870,12 @@ DynamicProtoCoder:
 DynamoDBIO: 
   methods: 
   - apply
-  - build
-  - builder
   - create
   - expand
   - finishBundle
   - items
   - processElement
   - read
-  - setMaxAttempts
-  - setMaxDuration
   - setup
   - startBundle
   - tearDown
@@ -4205,7 +4884,6 @@ DynamoDBIO:
   - withClientConfiguration
   - withCoder
   - withDeduplicateKeys
-  - withDynamoDbClientProvider
   - withRetryConfiguration
   - withScanRequestFn
   - withScanResponseMapperFn
@@ -4239,6 +4917,7 @@ ElasticsearchIO:
   - getCountEndPoint
   - getCurrent
   - getCurrentSource
+  - getDefaultHeaders
   - getDocToBulk
   - getEstimatedSizeBytes
   - getHasError
@@ -4248,6 +4927,7 @@ ElasticsearchIO:
   - getKeystorePath
   - getOutputCoder
   - getPassword
+  - getPathPrefix
   - getPrefixedEndpoint
   - getResponseItemJson
   - getSearchEndPoint
@@ -4277,6 +4957,7 @@ ElasticsearchIO:
   - withBulkDirective
   - withConnectTimeout
   - withConnectionConfiguration
+  - withDefaultHeaders
   - withDocVersionFn
   - withDocVersionType
   - withHasError
@@ -4294,6 +4975,7 @@ ElasticsearchIO:
   - withMaxParallelRequestsPerWindow
   - withMetadata
   - withPassword
+  - withPathPrefix
   - withQuery
   - withResponseItemJson
   - withRetryConfiguration
@@ -4324,6 +5006,13 @@ ElementByteSizeObserver:
   - setLazy
   - setScalingFactor
   - update
+ElementSample: 
+  properties: 
+  - exception
+  - id
+  - message
+  - ptransformId
+  - sample
 EmptyOnDeserializationThreadLocal: {}
 EncodableThrowable: 
   methods: 
@@ -4366,6 +5055,17 @@ EnumerationType:
   - valueOf
   properties: 
   - IDENTIFIER
+ErrorHandling: 
+  methods: 
+  - build
+  - builder
+  - errorRecord
+  - errorSchema
+  - errorSchemaBytes
+  - getOutput
+  - getOutputOrNull
+  - hasOutput
+  - setOutput
 Event: 
   methods: 
   - decode
@@ -4388,10 +5088,19 @@ ExecutionStateSampler:
   - activate
   - create
   - deactivate
+  - error
+  - getCounter
   - getCurrentThreadsPTransformId
+  - getDistribution
+  - getGauge
+  - getHistogram
   - getLastTransitionTimeMillis
+  - getMetricsContainer
+  - getMetricsContainerRegistry
+  - getMonitoringInfos
   - getPTransformId
   - getPTransformUniqueName
+  - getProcessBundleId
   - getStatus
   - getTrackedThread
   - reset
@@ -4433,6 +5142,11 @@ ExpansionService:
   - main
   - payloadToConfig
   - run
+ExpansionServiceConfig: 
+  methods: 
+  - empty
+  - getAllowlist
+  - getDependencies
 ExpansionServiceSchemaTransformProvider: 
   methods: 
   - createInput
@@ -4511,6 +5225,7 @@ ExternalWorkerService:
   - stopWorker
 ExternalWrite: 
   methods: 
+  - apply
   - buildExternal
   - knownBuilders
   - setIdLabel
@@ -4553,6 +5268,7 @@ FakeBigQueryServices:
   - getDatasetService
   - getJobService
   - getStorageClient
+  - getWriteStreamService
   - iterator
   - withDatasetService
   - withJobService
@@ -4577,10 +5293,13 @@ FakeDatasetService:
   - getStreamAppendClient
   - getTable
   - getTableImpl
+  - getUpdatedSchema
+  - getWriteStream
   - insertAll
   - isTableEmpty
   - patchTableDescription
   - pin
+  - setPrimaryKey
   - setShouldFailRow
   - setUp
   - unpin
@@ -4729,6 +5448,93 @@ FieldAccessDescriptorParser:
   - visitQualifyComponent
   - visitSimpleIdentifier
   - visitWildcard
+FieldSpecifierNotationBaseListener: 
+  methods: 
+  - enterArrayQualifier
+  - enterArrayQualifierList
+  - enterDotExpression
+  - enterEveryRule
+  - enterFieldSpecifier
+  - enterMapQualifier
+  - enterMapQualifierList
+  - enterQualifiedComponent
+  - enterQualifyComponent
+  - enterSimpleIdentifier
+  - enterWildcard
+  - exitArrayQualifier
+  - exitArrayQualifierList
+  - exitDotExpression
+  - exitEveryRule
+  - exitFieldSpecifier
+  - exitMapQualifier
+  - exitMapQualifierList
+  - exitQualifiedComponent
+  - exitQualifyComponent
+  - exitSimpleIdentifier
+  - exitWildcard
+  - visitErrorNode
+  - visitTerminal
+FieldSpecifierNotationBaseVisitor: 
+  methods: 
+  - visitArrayQualifier
+  - visitArrayQualifierList
+  - visitDotExpression
+  - visitFieldSpecifier
+  - visitMapQualifier
+  - visitMapQualifierList
+  - visitQualifiedComponent
+  - visitQualifyComponent
+  - visitSimpleIdentifier
+  - visitWildcard
+FieldSpecifierNotationLexer: 
+  methods: 
+  - getATN
+  - getChannelNames
+  - getGrammarFileName
+  - getModeNames
+  - getRuleNames
+  - getSerializedATN
+  - getTokenNames
+  - getVocabulary
+  properties: 
+  - T__0
+  - VOCABULARY
+  - _ATN
+  - _serializedATN
+  - channelNames
+  - modeNames
+  - ruleNames
+  - tokenNames
+FieldSpecifierNotationParser: 
+  methods: 
+  - IDENTIFIER
+  - WILDCARD
+  - accept
+  - arrayQualifier
+  - copyFrom
+  - dotExpression
+  - dotExpressionComponent
+  - enterRule
+  - exitRule
+  - fieldSpecifier
+  - getATN
+  - getGrammarFileName
+  - getRuleIndex
+  - getRuleNames
+  - getSerializedATN
+  - getTokenNames
+  - getVocabulary
+  - mapQualifier
+  - qualifiedComponent
+  - qualifierList
+  properties: 
+  - RULE_fieldSpecifier
+  - T__0
+  - VOCABULARY
+  - _ATN
+  - _serializedATN
+  - ruleNames
+  - tokenNames
 FieldTypeDescriptors: 
   methods: 
   - fieldTypeForJavaType
@@ -4739,8 +5545,10 @@ FieldValueTypeInformation:
   - forGetter
   - forOneOf
   - forSetter
+  - getDescription
   - getElementType
   - getField
+  - getFieldDescription
   - getMapKeyType
   - getMapValueType
   - getMethod
@@ -4752,6 +5560,7 @@ FieldValueTypeInformation:
   - getRawType
   - getType
   - isNullable
+  - setDescription
   - setElementType
   - setField
   - setMapKeyType
@@ -4900,6 +5709,30 @@ FilePatternMatchingShardedFile:
   methods: 
   - readFilesWithRetries
   - toString
+FileReadSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getFilepattern
+  - getFormat
+  - getPollIntervalMillis
+  - getSafeFilepattern
+  - getSafeSchema
+  - getSchema
+  - getTerminateAfterSecondsSinceNewOutput
+  - setFilepattern
+  - setFormat
+  - setPollIntervalMillis
+  - setSchema
+  - setTerminateAfterSecondsSinceNewOutput
+  properties: 
+  - VALID_PROVIDERS
+FileReadSchemaTransformProvider: 
+  methods: 
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
 FileSystem: {}
 FileSystemUtils: 
   methods: 
@@ -4912,6 +5745,7 @@ FileSystems:
   - delete
   - hasGlobWildcard
   - match
+  - matchNewDirectory
   - matchNewResource
   - matchResources
   - matchSingleFileSpec
@@ -4932,13 +5766,12 @@ FileWriteSchemaTransformConfiguration:
   - getCompression
   - getCompressionCodecName
   - getCsvConfiguration
-  - getCsvFormat
   - getFilenamePrefix
   - getFilenameSuffix
   - getFormat
   - getNumShards
   - getParquetConfiguration
-  - getPreamble
+  - getPredefinedCsvFormat
   - getRootElement
   - getRowGroupSize
   - getShardNameTemplate
@@ -4948,13 +5781,12 @@ FileWriteSchemaTransformConfiguration:
   - setCompression
   - setCompressionCodecName
   - setCsvConfiguration
-  - setCsvFormat
   - setFilenamePrefix
   - setFilenameSuffix
   - setFormat
   - setNumShards
   - setParquetConfiguration
-  - setPreamble
+  - setPredefinedCsvFormat
   - setRootElement
   - setRowGroupSize
   - setShardNameTemplate
@@ -4962,9 +5794,19 @@ FileWriteSchemaTransformConfiguration:
   - xmlConfigurationBuilder
 FileWriteSchemaTransformFormatProviders: 
   methods: 
-  - buildTransform
-  - identifier
+  - finish
   - loadProviders
+  - process
+FileWriteSchemaTransformProvider: 
+  methods: 
+  - expand
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  properties: 
+  - ERROR_SCHEMA
+  - FILE_NAME_FIELD
+  - OUTPUT_SCHEMA
 FillGaps: 
   methods: 
   - expand
@@ -4977,6 +5819,10 @@ FillGaps:
   - onGcTimer
   - onTimer
   - process
+  - withInterpolateFunction
+  - withMaxGapFillBuckets
+  - withMergeFunction
+  - withStopTime
 Filter: 
   methods: 
   - by
@@ -4999,6 +5845,9 @@ Filter:
   - whereFieldIds
   - whereFieldName
   - whereFieldNames
+FilterForMutationDoFn: 
+  methods: 
+  - processElement
 FinalizeBundleHandler: 
   methods: 
   - create
@@ -5142,6 +5991,7 @@ FluentBackoff:
   - withMaxBackoff
   - withMaxCumulativeBackoff
   - withMaxRetries
+  - withThrottledTimeCounter
   properties: 
   - DEFAULT
 FnApiDoFnRunner: 
@@ -5167,6 +6017,7 @@ FnApiDoFnRunner:
   - getProgress
   - getResidualInUnprocessedWindowsRoot
   - getResidualSplitRoot
+  - getRowReceiver
   - getWindowSplit
   - key
   - of
@@ -5293,6 +6144,8 @@ GaugeResult:
 GceMetadataUtil: 
   methods: 
   - fetchDataflowJobId
+  - fetchDataflowJobName
+  - fetchDataflowWorkerId
 GcpCredentialFactory: 
   methods: 
   - fromOptions
@@ -5408,6 +6261,9 @@ GcsUtil:
   - size
   - storageObject
   - verifyBucketAccessible
+GenerateInitialPartitionsAction: 
+  methods: 
+  - run
 GenerateSequence: 
   methods: 
   - buildExternal
@@ -5560,6 +6416,32 @@ GlobalWindows:
   - toString
   - verifyCompatibility
   - windowCoder
+GoogleAdsIO: 
+  methods: 
+  - v14
+GoogleAdsUserCredentialFactory: 
+  methods: 
+  - fromOptions
+  - getCredential
+GoogleAdsV14: 
+  methods: 
+  - expand
+  - nextBackOffMillis
+  - onBeforeRequest
+  - onError
+  - onSuccess
+  - populateDisplayData
+  - processElement
+  - read
+  - readAll
+  - reset
+  - setup
+  - teardown
+  - withDeveloperToken
+  - withGoogleAdsClientFactory
+  - withLoginCustomerId
+  - withQuery
+  - withRateLimitPolicy
 Group: 
   methods: 
   - aggregate
@@ -5572,11 +6454,20 @@ Group:
   - byFieldNames
   - create
   - expand
-  - getToKvs
+  - getFunction
+  - getKind
+  - getNumber
+  - getToKV
   - globally
+  - of
   - process
+  - setFanout
+  - setFewKeys
   - witValueField
+  - withFanout
+  - withHotKeyFanout
   - withKeyField
+  - withPrecombining
   - withValueField
 GroupByKey: 
   methods: 
@@ -5589,7 +6480,6 @@ GroupByKey:
   - getOutputKvCoder
   - populateDisplayData
   - updateWindowingStrategy
-  - validate
 GroupByKeyLoadTest: 
   methods: 
   - main
@@ -5600,6 +6490,7 @@ GroupIntoBatches:
   - create
   - createDefault
   - expand
+  - getAllowedTimestampSkew
   - getBatchSize
   - getBatchSizeBytes
   - getBatchingParams
@@ -5610,6 +6501,7 @@ GroupIntoBatches:
   - ofByteSize
   - ofSize
   - onBufferingTimer
+  - onHoldTimer
   - onWindowExpiration
   - onWindowTimer
   - processElement
@@ -5676,6 +6568,7 @@ HBaseIO:
   - withScan
   - withTableId
   - write
+  - writeRowMutations
 HCatToRow: 
   methods: 
   - expand
@@ -5750,6 +6643,7 @@ HL7v2IO:
   - processElement
   - read
   - readAll
+  - readAllRequests
   - readAllWithFilter
   - readWithFilter
   - split
@@ -5762,6 +6656,7 @@ HL7v2IO:
   - SUCCESS
 HL7v2Message: 
   methods: 
+  - equals
   - fromModel
   - getCreateTime
   - getData
@@ -5771,10 +6666,32 @@ HL7v2Message:
   - getSchematizedData
   - getSendFacility
   - getSendTime
+  - hashCode
   - setSchematizedData
   - toModel
   - toString
 HL7v2MessageCoder: 
+  methods: 
+  - decode
+  - encode
+  - of
+HL7v2ReadParameter: 
+  methods: 
+  - equals
+  - getHl7v2MessageId
+  - getMetadata
+  - hashCode
+  - of
+  - setHl7v2MessageId
+HL7v2ReadResponse: 
+  methods: 
+  - equals
+  - getHL7v2Message
+  - getMetadata
+  - hashCode
+  - of
+  - toString
+HL7v2ReadResponseCoder: 
   methods: 
   - decode
   - encode
@@ -5885,17 +6802,24 @@ HistogramData:
   methods: 
   - clear
   - equals
+  - exponential
   - getAccumulatedBucketSize
+  - getAndReset
+  - getBase
   - getBottomBucketCount
   - getBucketIndex
   - getBucketSize
   - getBucketType
   - getCount
+  - getInvLog2GrowthFactor
+  - getMean
   - getNumBuckets
   - getPercentileString
   - getRangeFrom
   - getRangeTo
+  - getScale
   - getStart
+  - getSumOfSquaredDeviations
   - getTopBucketCount
   - getTotalCount
   - getWidth
@@ -6112,6 +7036,13 @@ InitialPartition:
   properties: 
   - PARENT_TOKENS
   - PARTITION_TOKEN
+InitialPipelineState: 
+  methods: 
+  - equals
+  - getStartTime
+  - hashCode
+  - isResume
+  - toString
 InitializeDoFn: 
   methods: 
   - processElement
@@ -6243,6 +7174,19 @@ JavaBeanUtils:
   - validateJavaBean
   properties: 
   - CACHED_CREATORS
+JavaExplodeTransformProvider: 
+  methods: 
+  - build
+  - builder
+  - expand
+  - getCrossProduct
+  - getFields
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - processElement
+  - setCrossProduct
+  - setFields
 JavaFieldSchema: 
   methods: 
   - fieldValueGetters
@@ -6252,6 +7196,60 @@ JavaFieldSchema:
   - schemaTypeCreator
   properties: 
   - INSTANCE
+JavaFilterTransformProvider: 
+  methods: 
+  - build
+  - builder
+  - expand
+  - getErrorHandling
+  - getKeep
+  - getLanguage
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - processElement
+  - setErrorHandling
+  - setKeep
+  - setLanguage
+JavaMapToFieldsTransformProvider: 
+  methods: 
+  - build
+  - builder
+  - expand
+  - getAppend
+  - getDrop
+  - getErrorHandling
+  - getFields
+  - getLanguage
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - processElement
+  - setAppend
+  - setDrop
+  - setErrorHandling
+  - setFields
+  - setLanguage
+JavaRowUdf: 
+  methods: 
+  - build
+  - builder
+  - get
+  - getCallable
+  - getExpression
+  - getFunction
+  - getName
+  - getOutputType
+  - getPath
+  - outputOf
+  - setCallable
+  - setExpression
+  - setName
+  - setPath
+  - validate
+  properties: 
+  - function
+  - outputType
 JavaUdfLoader: 
   methods: 
   - createClassLoader
@@ -6270,14 +7268,15 @@ JdbcDriver:
   properties: 
   - CONNECT_STRING_PREFIX
   - INSTANCE
-  - OBJECT_MAPPER
 JdbcIO: 
   methods: 
   - apply
+  - buildDatasource
   - create
   - expand
   - finish
   - finishBundle
+  - inferBeamSchema
   - of
   - populateDisplayData
   - process
@@ -6297,8 +7296,10 @@ JdbcIO:
   - withDataSourceConfiguration
   - withDataSourceProviderFn
   - withDriverClassLoader
+  - withDriverJars
   - withFetchSize
   - withLowerBound
+  - withMaxConnections
   - withNumPartitions
   - withOutputParallelization
   - withParameterSetter
@@ -6322,12 +7323,12 @@ JdbcIO:
 JdbcReadSchemaTransformProvider: 
   methods: 
   - build
-  - buildTransform
   - builder
   - expand
   - getConnectionInitSql
   - getConnectionProperties
   - getDriverClassName
+  - getDriverJars
   - getFetchSize
   - getJdbcUrl
   - getLocation
@@ -6341,6 +7342,7 @@ JdbcReadSchemaTransformProvider:
   - setConnectionInitSql
   - setConnectionProperties
   - setDriverClassName
+  - setDriverJars
   - setFetchSize
   - setJdbcUrl
   - setLocation
@@ -6366,13 +7368,13 @@ JdbcWriteResult:
 JdbcWriteSchemaTransformProvider: 
   methods: 
   - build
-  - buildTransform
   - builder
   - expand
   - getAutosharding
   - getConnectionInitSql
   - getConnectionProperties
   - getDriverClassName
+  - getDriverJars
   - getJdbcUrl
   - getLocation
   - getPassword
@@ -6381,10 +7383,12 @@ JdbcWriteSchemaTransformProvider:
   - identifier
   - inputCollectionNames
   - outputCollectionNames
+  - process
   - setAutosharding
   - setConnectionInitSql
   - setConnectionProperties
   - setDriverClassName
+  - setDriverJars
   - setJdbcUrl
   - setLocation
   - setPassword
@@ -6397,6 +7401,7 @@ JmsIO:
   - close
   - createReader
   - expand
+  - finishBundle
   - getCheckpointMark
   - getCheckpointMarkCoder
   - getCurrent
@@ -6413,7 +7418,8 @@ JmsIO:
   - setup
   - split
   - start
-  - teardown
+  - startBundle
+  - tearDown
   - withAutoScaler
   - withCloseTimeout
   - withCoder
@@ -6423,11 +7429,16 @@ JmsIO:
   - withMessageMapper
   - withPassword
   - withQueue
+  - withRetryConfiguration
   - withTopic
   - withTopicNameMapper
   - withUsername
   - withValueMapper
   - write
+  properties: 
+  - CONNECTION_ERRORS_METRIC_NAME
+  - JMS_IO_PRODUCER_METRIC_NAME
+  - PUBLICATION_RETRIES_METRIC_NAME
 JmsIOException: {}
 JmsRecord: 
   methods: 
@@ -6499,6 +7510,20 @@ JsonArrayCoder:
   - decode
   - encode
   - of
+JsonIO: 
+  methods: 
+  - expand
+  - withCompression
+  - withNoSpilling
+  - withNumShards
+  - withShardTemplate
+  - withSuffix
+  - withTempDirectory
+  - withWindowedWrites
+  - withWritableByteChannelFactory
+  - withoutSharding
+  - write
+  - writeRows
 JsonMatcher: 
   methods: 
   - describeTo
@@ -6507,6 +7532,11 @@ JsonMatcher:
 JsonPayloadSerializerProvider: 
   methods: 
   - getSerializer
+  - identifier
+JsonReadSchemaTransformFormatProvider: 
+  methods: 
+  - buildTransform
+  - expand
   - identifier
 JsonToRow: 
   methods: 
@@ -6540,6 +7570,25 @@ JsonUtils:
   - getJsonStringToRowFunction
   - getRowToJsonBytesFunction
   - getRowToJsonStringsFunction
+  - jsonSchemaFromBeamSchema
+  - jsonSchemaStringFromBeamSchema
+JsonWriteSchemaTransformFormatProvider: 
+  methods: 
+  - apply
+  - buildTransform
+  - expand
+  - identifier
+JsonWriteTransformProvider: 
+  methods: 
+  - build
+  - builder
+  - expand
+  - getPath
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - setPath
+  - validate
 JvmInitializers: 
   methods: 
   - runBeforeProcessing
@@ -6571,6 +7620,7 @@ KafkaConnectUtils:
   - beamRowFromSourceRecordFn
   - beamSchemaFromKafkaConnectSchema
   - beamSchemaTypeFromKafkaType
+  - debeziumRecordInstant
   - mapSourceRecord
 KafkaIO: 
   methods: 
@@ -6582,8 +7632,40 @@ KafkaIO:
   - encode
   - expand
   - externalWithMetadata
+  - getBadRecordErrorHandler
+  - getBadRecordRouter
+  - getCheckStopReadingFn
+  - getConsumerConfig
+  - getConsumerFactoryFn
+  - getKeyCoder
+  - getKeyDeserializerProvider
+  - getKeySerializer
+  - getMaxNumRecords
+  - getMaxReadTime
+  - getNumShards
+  - getOffsetConsumerConfig
+  - getProducerConfig
+  - getProducerFactoryFn
+  - getPublishTimestampFunction
   - getReplacementTransform
+  - getSinkGroupId
+  - getStartReadTime
+  - getStopReadTime
   - getTimestamp
+  - getTimestampPolicyFactory
+  - getTopic
+  - getTopicPartitions
+  - getTopicPattern
+  - getTopics
+  - getValueCoder
+  - getValueDeserializerProvider
+  - getValueSerializer
+  - getWatchTopicPartitionDuration
+  - getWatermarkFn
+  - getWriteRecordsTransform
+  - isCommitOffsetsInFinalizeEnabled
+  - isDynamicRead
+  - isEOS
   - knownBuilders
   - mapOutputs
   - populateDisplayData
@@ -6613,6 +7695,7 @@ KafkaIO:
   - useProcessingTime
   - validate
   - values
+  - withBadRecordErrorHandler
   - withBootstrapServers
   - withCheckStopReadingFn
   - withConsumerConfigOverrides
@@ -6627,6 +7710,7 @@ KafkaIO:
   - withKeyDeserializer
   - withKeyDeserializerAndCoder
   - withKeyDeserializerProvider
+  - withKeyDeserializerProviderAndCoder
   - withKeySerializer
   - withLogAppendTime
   - withManualWatermarkEstimator
@@ -6646,10 +7730,12 @@ KafkaIO:
   - withTimestampPolicyFactory
   - withTopic
   - withTopicPartitions
+  - withTopicPattern
   - withTopics
   - withValueDeserializer
   - withValueDeserializerAndCoder
   - withValueDeserializerProvider
+  - withValueDeserializerProviderAndCoder
   - withValueSerializer
   - withWallTimeWatermarkEstimator
   - withWatermarkFn
@@ -6658,10 +7744,24 @@ KafkaIO:
   - write
   - writeRecords
   properties: 
+  - AUTOVALUE_CLASS
   - KAFKA_READ_OVERRIDE
   - URN
   - URN_WITHOUT_METADATA
   - URN_WITH_METADATA
+KafkaIOTranslation: 
+  methods: 
+  - fromConfigRow
+  - getTransformPayloadTranslators
+  - getUrn
+  - toConfigRow
+  - translate
+  properties: 
+  - KAFKA_READ_WITH_METADATA_TRANSFORM_URN_V2
+  - KAFKA_WRITE_TRANSFORM_URN_V2
+KafkaIOUtils: 
+  properties: 
+  - DISALLOWED_CONSUMER_PROPERTIES
 KafkaReadSchemaTransformConfiguration: 
   methods: 
   - build
@@ -6671,7 +7771,10 @@ KafkaReadSchemaTransformConfiguration:
   - getConfluentSchemaRegistrySubject
   - getConfluentSchemaRegistryUrl
   - getConsumerConfigUpdates
-  - getDataFormat
+  - getErrorHandling
+  - getFileDescriptorPath
+  - getFormat
+  - getMessageName
   - getSchema
   - getTopic
   - setAutoOffsetResetConfig
@@ -6679,20 +7782,30 @@ KafkaReadSchemaTransformConfiguration:
   - setConfluentSchemaRegistrySubject
   - setConfluentSchemaRegistryUrl
   - setConsumerConfigUpdates
-  - setDataFormat
+  - setErrorHandling
+  - setFileDescriptorPath
+  - setFormat
+  - setMessageName
   - setSchema
   - setTopic
   - validate
   properties: 
   - VALID_DATA_FORMATS
+  - VALID_FORMATS_STR
   - VALID_START_OFFSET_VALUES
 KafkaReadSchemaTransformProvider: 
   methods: 
-  - buildTransform
+  - apply
   - expand
+  - finish
+  - getRawBytesToRowFunction
   - identifier
   - inputCollectionNames
   - outputCollectionNames
+  - process
+  properties: 
+  - ERROR_TAG
+  - OUTPUT_TAG
 KafkaRecord: 
   methods: 
   - equals
@@ -6722,9 +7835,11 @@ KafkaSourceConsumerFn:
   - exists
   - getHashCode
   - getInitialRestriction
+  - getInitialWatermarkEstimatorState
   - getRestrictionCoder
   - isBounded
   - newTracker
+  - newWatermarkEstimator
   - offset
   - offsetStorageReader
   - offsets
@@ -6750,23 +7865,34 @@ KafkaTableProvider:
   - getTableType
 KafkaWriteSchemaTransformProvider: 
   methods: 
+  - apply
   - build
-  - buildTransform
   - builder
   - expand
+  - finish
   - getBootstrapServers
+  - getFileDescriptorPath
   - getFormat
+  - getMessageName
   - getProducerConfigUpdates
+  - getRowToRawBytesFunction
   - getTopic
   - identifier
   - inputCollectionNames
   - outputCollectionNames
+  - process
   - setBootstrapServers
+  - setFileDescriptorPath
   - setFormat
+  - setMessageName
   - setProducerConfigUpdates
   - setTopic
   properties: 
+  - ERROR_SCHEMA
+  - ERROR_TAG
+  - OUTPUT_TAG
   - SUPPORTED_FORMATS
+  - SUPPORTED_FORMATS_STR
 KeyPairUtils: 
   methods: 
   - preparePrivateKey
@@ -6793,7 +7919,7 @@ Keys:
 KinesisClientThrottledException: {}
 KinesisIO: 
   methods: 
-  - addPutRecordsRequest
+  - addBatchWriteRequest
   - build
   - builder
   - close
@@ -6818,6 +7944,7 @@ KinesisIO:
   - withBatchMaxRecords
   - withClientConfiguration
   - withConcurrentRequests
+  - withConsumerArn
   - withCustomRateLimitPolicy
   - withCustomWatermarkPolicy
   - withDynamicDelayRateLimitPolicy
@@ -6984,6 +8111,11 @@ LengthPrefixCoder:
   - isRegisterByteSizeObserverCheap
   - of
   - verifyDeterministic
+LineReadSchemaTransformFormatProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
 ListCoder: 
   methods: 
   - consistentWithEquals
@@ -7004,11 +8136,6 @@ LocalResources:
   - fromFile
   - fromPath
   - fromString
-LogicalCalcMergeRule: 
-  methods: 
-  - onMatch
-  properties: 
-  - INSTANCE
 LogicalEndpoint: 
   methods: 
   - data
@@ -7190,6 +8317,66 @@ MetadataCoderV2:
   - decode
   - encode
   - of
+MetadataSpannerConfigFactory: 
+  methods: 
+  - create
+MetadataTableAdminDao: 
+  methods: 
+  - cleanUpPrefix
+  - createMetadataTable
+  - doesMetadataTableExist
+  - getChangeStreamNamePrefix
+  - getTableId
+  - isAppProfileSingleClusterAndTransactional
+  properties: 
+  - CF_CONTINUATION_TOKEN
+  - CF_INITIAL_TOKEN
+  - CF_LOCK
+  - CF_MISSING_PARTITIONS
+  - CF_PARENT_LOW_WATERMARKS
+  - CF_PARENT_PARTITIONS
+  - CF_SHOULD_DELETE
+  - CF_VERSION
+  - CF_WATERMARK
+  - COLUMN_FAMILIES
+  - CURRENT_METADATA_TABLE_VERSION
+  - DEFAULT_METADATA_TABLE_NAME
+  - DETECT_NEW_PARTITION_SUFFIX
+  - NEW_PARTITION_PREFIX
+  - QUALIFIER_DEFAULT
+  - STREAM_PARTITION_PREFIX
+MetadataTableDao: 
+  methods: 
+  - convertNewPartitionRowKeyToPartition
+  - convertPartitionToNewPartitionRowKey
+  - convertPartitionToStreamPartitionRowKey
+  - convertStreamPartitionRowKeyToPartition
+  - deleteNewPartition
+  - deleteStreamPartitionRow
+  - doHoldLock
+  - getChangeStreamNamePrefix
+  - lockAndRecordPartition
+  - markNewPartitionForDeletion
+  - readAllStreamPartitions
+  - readDetectNewPartitionMissingPartitions
+  - readDetectNewPartitionsState
+  - readNewPartitions
+  - readNewPartitionsIncludingDeleted
+  - readStreamPartitionsWithWatermark
+  - releaseStreamPartitionLockForDeletion
+  - updateDetectNewPartitionWatermark
+  - updateWatermark
+  - writeDetectNewPartitionMissingPartitions
+  - writeDetectNewPartitionVersion
+  - writeNewPartition
+MetadataTableEncoder: 
+  methods: 
+  - isRowLocked
+  - parseInitialContinuationTokens
+  - parseLockUuid
+  - parseTokenFromRow
+  - parseWatermarkFromRow
+  - parseWatermarkLastUpdatedFromRow
 MetricFiltering: 
   methods: 
   - matches
@@ -7639,6 +8826,17 @@ Never:
   methods: 
   - ever
   - getWatermarkThatGuaranteesFiring
+NewPartition: 
+  methods: 
+  - equals
+  - getChangeStreamContinuationTokens
+  - getLastUpdated
+  - getLowWatermark
+  - getParentPartitions
+  - getPartition
+  - getSingleTokenNewPartition
+  - hashCode
+  - toString
 NexmarkConfiguration: 
   methods: 
   - copy
@@ -7799,6 +8997,17 @@ NexmarkUtils:
   - MAPPER
   - PUBSUB_ID
   - PUBSUB_TIMESTAMP
+NoOpCounter: 
+  methods: 
+  - dec
+  - getInstance
+  - getName
+  - inc
+NoOpHistogram: 
+  methods: 
+  - getInstance
+  - getName
+  - update
 NoSuchSchemaException: {}
 NodeStats: 
   methods: 
@@ -7840,11 +9049,20 @@ NoopPathValidator:
   - validateOutputFilePrefixSupported
   - validateOutputResourceSupported
   - verifyPath
+NormalizedRange: 
+  methods: 
+  - fromFeedRange
+  - toFeedRange
+  properties: 
+  - FULL_RANGE
 NullCredentialInitializer: 
   methods: 
   - handleResponse
   - initialize
   - throwNullCredentialException
+NullSizeEstimator: 
+  methods: 
+  - sizeOf
 NullThroughputEstimator: 
   methods: 
   - getFrom
@@ -7994,6 +9212,11 @@ OrderKey:
   - getIndex
   - getNullFirst
   - of
+OrphanedMetadataCleaner: 
+  methods: 
+  - addIncompleteNewPartitions
+  - addMissingPartitions
+  - getOrphanedNewPartitions
 OutboundObserverFactory: 
   methods: 
   - clientBuffered
@@ -8001,6 +9224,11 @@ OutboundObserverFactory:
   - outboundObserverFor
   - serverDirect
   - trivial
+OutputSampler: 
+  methods: 
+  - exception
+  - sample
+  - samples
 PAssert: 
   methods: 
   - apply
@@ -8079,7 +9307,7 @@ PCollectionConsumerRegistry:
   - forConsumer
   - getConsumer
   - getExecutionState
-  - getMetricsContainer
+  - getExecutionStateTracker
   - getMultiplexingConsumer
   - getPTransformId
   - getProgress
@@ -8199,9 +9427,11 @@ POJOUtils:
   - CACHED_CREATORS
 PTransform: 
   methods: 
+  - addAnnotation
   - compose
   - expand
   - getAdditionalInputs
+  - getAnnotations
   - getDefaultOutputCoder
   - getName
   - getResourceHints
@@ -8321,11 +9551,27 @@ ParquetIO:
   - withProjection
   - withRowGroupSize
   - write
+ParquetReadSchemaTransformFormatProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
 ParquetTableProvider: 
   methods: 
   - buildBeamSqlTable
   - getTableType
-ParseException: {}
+ParquetWriteSchemaTransformFormatProvider: 
+  methods: 
+  - buildTransform
+  - expand
+  - identifier
+ParseException: 
+  methods: 
+  - getMessage
+  properties: 
+  - currentToken
+  - expectedTokenSequences
+  - tokenImage
 ParseJsons: 
   methods: 
   - apply
@@ -8420,64 +9666,25 @@ PartitionMetadataDao:
 PartitionMetadataMapper: 
   methods: 
   - from
-PartitionPosition: 
+PartitionReconciler: 
   methods: 
-  - done
+  - addIncompleteNewPartitions
+  - addMissingPartitions
+  - getPartitionsToReconcile
+PartitionRecord: 
+  methods: 
   - equals
-  - getMode
-  - getTimestamp
+  - getChangeStreamContinuationTokens
+  - getEndTime
+  - getParentLowWatermark
+  - getParentPartitions
+  - getPartition
+  - getStartTime
+  - getUuid
   - hashCode
-  - queryChangeStream
-  - stop
+  - setEndTime
+  - setUuid
   - toString
-  - updateState
-  - waitForChildPartitions
-PartitionRestriction: 
-  methods: 
-  - done
-  - equals
-  - getEndTimestamp
-  - getMetadata
-  - getMode
-  - getStartTimestamp
-  - getStoppedMode
-  - hashCode
-  - queryChangeStream
-  - stop
-  - toString
-  - updateState
-  - waitForChildPartitions
-  - withMetadata
-PartitionRestrictionClaimer: 
-  methods: 
-  - tryClaim
-PartitionRestrictionMetadata: 
-  methods: 
-  - build
-  - getPartitionEndTimestamp
-  - getPartitionStartTimestamp
-  - getPartitionToken
-  - newBuilder
-  - toString
-  - withPartitionEndTimestamp
-  - withPartitionStartTimestamp
-  - withPartitionToken
-PartitionRestrictionProgressChecker: 
-  methods: 
-  - getProgress
-  - setTimeSupplier
-PartitionRestrictionSplitter: 
-  methods: 
-  - trySplit
-PartitionRestrictionTracker: 
-  methods: 
-  - checkDone
-  - currentRestriction
-  - getProgress
-  - isBounded
-  - setTimeSupplier
-  - tryClaim
-  - trySplit
 PartitioningWindowFn: 
   methods: 
   - assignWindow
@@ -8505,9 +9712,12 @@ PayloadSerializers:
 PeriodicImpulse: 
   methods: 
   - applyWindowing
+  - catchUpToNow
   - create
   - expand
+  - process
   - startAt
+  - stopAfter
   - stopAt
   - withInterval
 PeriodicSequence: 
@@ -8526,9 +9736,11 @@ PeriodicSequence:
   - newWatermarkEstimator
   - processElement
   - toString
+  - truncate
   - tryClaim
   - trySplit
   properties: 
+  - catchUpToNow
   - durationMilliSec
   - first
   - last
@@ -8574,6 +9786,7 @@ Pipeline:
   - getSchemaRegistry
   - leaveCompositeTransform
   - leavePipeline
+  - registerBadRecordErrorHandler
   - replaceAll
   - run
   - setCoderRegistry
@@ -8700,6 +9913,9 @@ PrefetchableIterators:
   - isReady
   - next
   - prefetch
+PreparePubsubWriteDoFn: 
+  methods: 
+  - process
 PrepareWrite: 
   methods: 
   - expand
@@ -8718,9 +9934,10 @@ ProcessBundleBenchmark:
   - testStateWithCaching
   - testStateWithoutCaching
   - testTinyBundle
+  properties: 
+  - elementsEmbedding
 ProcessBundleHandler: 
   methods: 
-  - activate
   - addBundleProgressReporter
   - addFinishBundleFunction
   - addIncomingDataEndpoint
@@ -8735,6 +9952,7 @@ ProcessBundleHandler:
   - close
   - create
   - createRunnerForPTransform
+  - discard
   - find
   - getActiveBundleProcessors
   - getBeamFnDataClient
@@ -8767,6 +9985,9 @@ ProcessBundleHandler:
   - trySplit
   properties: 
   - JAVA_SOURCE_URN
+ProcessNewPartitionsAction: 
+  methods: 
+  - processNewPartition
 ProducerRecordCoder: 
   methods: 
   - consistentWithEquals
@@ -8777,6 +9998,16 @@ ProducerRecordCoder:
   - of
   - structuralValue
   - verifyDeterministic
+ProtoByteUtils: 
+  methods: 
+  - apply
+  - getBeamSchemaFromProto
+  - getFileName
+  - getProtoBytesToRowFunction
+  - getProtoDomain
+  - getRowToProtoBytes
+  - setFileName
+  - setProtoDomain
 ProtoCoder: 
   methods: 
   - coderFor
@@ -8855,14 +10086,6 @@ PubSubPayloadTranslation:
   - getTransformPayloadTranslators
   - getUrn
   - translate
-PublishResponseCoders: 
-  methods: 
-  - decode
-  - defaultPublishResponse
-  - encode
-  - fullPublishResponse
-  - fullPublishResponseWithoutHeaders
-  - verifyDeterministic
 PublishResultCoders: 
   methods: 
   - decode
@@ -8893,11 +10116,13 @@ PubsubClient:
   - equals
   - getFullPath
   - getId
+  - getMessage
   - getName
   - getPath
   - getProjectId
   - getSchema
   - getSchemaPath
+  - getTimestampMsSinceEpoch
   - hashCode
   - isEOF
   - listSubscriptions
@@ -8917,6 +10142,7 @@ PubsubClient:
   - subscriptionPathFromPath
   - timestampMsSinceEpoch
   - toString
+  - topic
   - topicPathFromName
   - topicPathFromPath
 PubsubCoderProviderRegistrar: 
@@ -8967,11 +10193,13 @@ PubsubIO:
   - asPath
   - asV1Beta1Path
   - asV1Beta2Path
+  - equals
   - expand
   - finishBundle
   - fromPath
   - fromSubscription
   - fromTopic
+  - hashCode
   - populateDisplayData
   - processElement
   - readAvroGenericRecords
@@ -8999,8 +10227,12 @@ PubsubIO:
   - withTimestampAttribute
   - writeAvros
   - writeMessages
+  - writeMessagesDynamic
   - writeProtos
   - writeStrings
+  properties: 
+  - ENABLE_CUSTOM_PUBSUB_SINK
+  - ENABLE_CUSTOM_PUBSUB_SOURCE
 PubsubJsonClient: 
   methods: 
   - ackDeadlineSeconds
@@ -9033,24 +10265,42 @@ PubsubLiteIO:
   - write
 PubsubLiteReadSchemaTransformProvider: 
   methods: 
+  - apply
   - build
-  - buildTransform
+  - buildSchemaWithAttributes
   - builder
   - expand
+  - finish
   - from
-  - getDataFormat
+  - getAttributeId
+  - getAttributeMap
+  - getAttributes
+  - getErrorHandling
+  - getFormat
   - getLocation
   - getProject
+  - getRawBytesToRowFunction
   - getSchema
   - getSubscriptionName
+  - getUuidFromMessage
   - identifier
   - inputCollectionNames
   - outputCollectionNames
-  - setDataFormat
+  - process
+  - setAttributeId
+  - setAttributeMap
+  - setAttributes
+  - setErrorHandling
+  - setFormat
   - setLocation
   - setProject
   - setSchema
   - setSubscriptionName
+  properties: 
+  - ERROR_TAG
+  - OUTPUT_TAG
+  - VALID_DATA_FORMATS
+  - VALID_FORMATS_STR
 PubsubLiteSink: 
   methods: 
   - finishBundle
@@ -9062,23 +10312,38 @@ PubsubLiteTableProvider:
   - getTableType
 PubsubLiteWriteSchemaTransformProvider: 
   methods: 
+  - apply
   - build
-  - buildTransform
   - builder
   - expand
+  - finish
+  - from
+  - getAttributeId
+  - getAttributes
+  - getErrorHandling
   - getFormat
   - getLocation
   - getProject
+  - getRowToRawBytesFunction
+  - getSchemaWithoutAttributes
   - getTopicName
   - identifier
   - inputCollectionNames
   - outputCollectionNames
+  - process
+  - processElement
+  - setAttributeId
+  - setAttributes
+  - setErrorHandling
   - setFormat
   - setLocation
   - setProject
   - setTopicName
   properties: 
+  - ERROR_TAG
+  - OUTPUT_TAG
   - SUPPORTED_FORMATS
+  - SUPPORTED_FORMATS_STR
 PubsubMessage: 
   methods: 
   - equals
@@ -9087,8 +10352,10 @@ PubsubMessage:
   - getMessageId
   - getOrderingKey
   - getPayload
+  - getTopic
   - hashCode
   - toString
+  - withTopic
 PubsubMessagePayloadOnlyCoder: 
   methods: 
   - decode
@@ -9114,11 +10381,60 @@ PubsubMessageWithMessageIdCoder:
   - decode
   - encode
   - of
+PubsubMessageWithTopicCoder: 
+  methods: 
+  - decode
+  - encode
+  - of
 PubsubMessages: 
   methods: 
   - apply
   - fromProto
   - toProto
+PubsubReadSchemaTransformConfiguration: 
+  methods: 
+  - build
+  - builder
+  - getAttributes
+  - getAttributesMap
+  - getClientFactory
+  - getClock
+  - getErrorHandling
+  - getFormat
+  - getIdAttribute
+  - getOutput
+  - getSchema
+  - getSubscription
+  - getTimestampAttribute
+  - getTopic
+  - setAttributes
+  - setAttributesMap
+  - setClientFactory
+  - setClock
+  - setErrorHandling
+  - setFormat
+  - setIdAttribute
+  - setOutput
+  - setSchema
+  - setSubscription
+  - setTimestampAttribute
+  - setTopic
+PubsubReadSchemaTransformProvider: 
+  methods: 
+  - configurationClass
+  - expand
+  - finish
+  - from
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - process
+  properties: 
+  - ERROR_SCHEMA
+  - ERROR_TAG
+  - OUTPUT_TAG
+  - VALID_DATA_FORMATS
+  - VALID_FORMATS_STR
 PubsubSchemaIOProvider: 
   methods: 
   - buildReader
@@ -9134,38 +10450,6 @@ PubsubSchemaIOProvider:
   - ATTRIBUTE_ARRAY_ENTRY_SCHEMA
   - ATTRIBUTE_ARRAY_FIELD_TYPE
   - ATTRIBUTE_MAP_FIELD_TYPE
-PubsubSchemaTransformReadConfiguration: 
-  methods: 
-  - build
-  - builder
-  - getDataSchema
-  - getDeadLetterQueue
-  - getFormat
-  - getIdAttribute
-  - getProtoClass
-  - getSubscription
-  - getThriftClass
-  - getThriftProtocolFactoryClass
-  - getTimestampAttribute
-  - getTopic
-  - setDataSchema
-  - setDeadLetterQueue
-  - setFormat
-  - setIdAttribute
-  - setProtoClass
-  - setSubscription
-  - setThriftClass
-  - setThriftProtocolFactoryClass
-  - setTimestampAttribute
-  - setTopic
-PubsubSchemaTransformReadProvider: 
-  methods: 
-  - buildTransform
-  - expand
-  - identifier
-  - inputCollectionNames
-  - outputCollectionNames
-  - validate
 PubsubTableProvider: 
   methods: 
   - getSchemaIOProvider
@@ -9257,36 +10541,36 @@ PubsubWriteSchemaTransformConfiguration:
   methods: 
   - build
   - builder
-  - getAttributesFieldName
+  - getAttributes
+  - getAttributesMap
+  - getErrorHandling
   - getFormat
   - getIdAttribute
-  - getPayloadFieldName
-  - getSource
-  - getTarget
-  - getTimestampAttributeKey
-  - getTimestampFieldName
+  - getOutput
+  - getTimestampAttribute
   - getTopic
-  - setAttributesFieldName
+  - setAttributes
+  - setAttributesMap
+  - setErrorHandling
   - setFormat
   - setIdAttribute
-  - setPayloadFieldName
-  - setSource
-  - setTarget
-  - setTimestampAttributeKey
-  - setTimestampFieldName
+  - setOutput
+  - setTimestampAttribute
   - setTopic
-  - sourceConfigurationBuilder
-  - targetConfigurationBuilder
-  properties: 
-  - DEFAULT_TIMESTAMP_ATTRIBUTE
 PubsubWriteSchemaTransformProvider: 
   methods: 
-  - buildTransform
+  - configurationClass
   - expand
+  - from
   - identifier
   - inputCollectionNames
   - outputCollectionNames
-  - process
+  - processElement
+  properties: 
+  - ERROR_TAG
+  - OUTPUT_TAG
+  - VALID_DATA_FORMATS
+  - VALID_FORMATS_STR
 PulsarIO: 
   methods: 
   - expand
@@ -9342,12 +10626,16 @@ PythonExternalTransform:
   - withOutputCoder
   - withOutputCoders
   - withTypeHint
+PythonExternalTransformOptionsRegistrar: 
+  methods: 
+  - getPipelineOptions
 PythonMap: 
   methods: 
   - expand
   - viaFlatMapFn
   - viaMapFn
   - withExpansionService
+  - withExtraPackages
 PythonService: 
   methods: 
   - findAvailablePort
@@ -9496,6 +10784,22 @@ QueryTrait:
   - outputColumnMap
   - resolvedTables
   - withEntries
+Quota: 
+  methods: 
+  - equals
+  - getInterval
+  - getNumRequests
+  - hashCode
+  - toString
+QuotaEvent: 
+  methods: 
+  - close
+  - create
+  - setEnabled
+  - withFullResourceName
+  - withMessageText
+  - withOperation
+  - withQuotaName
 RabbitMqIO: 
   methods: 
   - advance
@@ -9609,14 +10913,20 @@ Read:
 ReadAllViaFileBasedSource: 
   methods: 
   - apply
+ReadAllViaFileBasedSourceTransform: 
+  methods: 
   - expand
   - process
   properties: 
   - DEFAULT_USES_RESHUFFLE
+ReadAllViaFileBasedSourceWithFilename: {}
 ReadBuilder: 
   methods: 
   - buildExternal
   - getCsvMapper
+ReadChangeStreamPartitionAction: 
+  methods: 
+  - run
 ReadChangeStreamPartitionDoFn: 
   methods: 
   - getInitialWatermarkEstimatorState
@@ -9625,8 +10935,18 @@ ReadChangeStreamPartitionDoFn:
   - newTracker
   - newWatermarkEstimator
   - processElement
+  - restrictionTracker
+  - setSizeEstimator
   - setThroughputEstimator
   - setup
+ReadChangeStreamPartitionProgressTracker: 
+  methods: 
+  - checkDone
+  - currentRestriction
+  - isBounded
+  - toString
+  - tryClaim
+  - trySplit
 ReadChangeStreamPartitionRangeTracker: 
   methods: 
   - tryClaim
@@ -9667,6 +10987,11 @@ ReadOperation:
   - withQuery
   - withQueryName
   - withTable
+ReadSpannerSchema: 
+  methods: 
+  - processElement
+  - setup
+  - teardown
 ReadableFileCoder: 
   methods: 
   - decode
@@ -10026,6 +11351,14 @@ Repeatedly:
   - getWatermarkThatGuaranteesFiring
   - mayFinish
   - toString
+RequestResponseIO: 
+  methods: 
+  - expand
+  - finishSpecifyingOutput
+  - getFailures
+  - getPipeline
+  - getResponses
+  - of
 Requirements: 
   methods: 
   - empty
@@ -10063,6 +11396,7 @@ ResourceHints:
   - parse
   - toBytes
   - withAccelerator
+  - withCPUCount
   - withHint
   - withMinRam
 ResourceIdCoder: 
@@ -10086,6 +11420,8 @@ RestrictionTracker:
   - of
   - tryClaim
   - trySplit
+  properties: 
+  - NONE
 RestrictionTrackers: 
   methods: 
   - checkDone
@@ -10095,12 +11431,16 @@ RestrictionTrackers:
   - observe
   - tryClaim
   - trySplit
+ResumeFromPreviousPipelineAction: 
+  methods: 
+  - run
 RetryConfiguration: 
   methods: 
   - baseBackoff
   - build
   - builder
   - convert
+  - create
   - maxBackoff
   - numRetries
   - throttledBaseBackoff
@@ -10206,6 +11546,21 @@ RowMessages:
   - apply
   - bytesToRowFn
   - rowToBytesFn
+RowMutation: 
+  methods: 
+  - decode
+  - encode
+  - getMutationInformation
+  - getTableRow
+  - of
+RowMutationInformation: 
+  methods: 
+  - getMutationType
+  - getSequenceNumber
+  - of
+RowSchemaInformationProvider: 
+  methods: 
+  - getConvertedSchemaInformation
 RowToCsv: 
   methods: 
   - expand
@@ -10396,7 +11751,23 @@ Schema:
   - addIterableField
   - addLogicalTypeField
   - addMapField
+  - addNullableArrayField
+  - addNullableBooleanField
+  - addNullableByteArrayField
+  - addNullableByteField
+  - addNullableDateTimeField
+  - addNullableDecimalField
+  - addNullableDoubleField
   - addNullableField
+  - addNullableFloatField
+  - addNullableInt16Field
+  - addNullableInt32Field
+  - addNullableInt64Field
+  - addNullableIterableField
+  - addNullableLogicalTypeField
+  - addNullableMapField
+  - addNullableRowField
+  - addNullableStringField
   - addOptions
   - addRowField
   - addStringField
@@ -10550,12 +11921,21 @@ SchemaRegistry:
   - registerSchemaProvider
   - schemaFor
   - toRowFunction
+SchemaTransform: {}
 SchemaTranslation: 
   methods: 
   - rowFromProto
   - rowToProto
   - schemaFromProto
   - schemaToProto
+SchemaUtil: 
+  methods: 
+  - compareSchemaField
+  - getField
+  - getIndex
+  - mapRow
+  - of
+  - toBeamSchema
 SchemaUtils: 
   methods: 
   - mergeWideningNullable
@@ -10810,6 +12190,27 @@ SideInputLoadTest:
 SideInputSpec: 
   methods: 
   - create
+SimpleCharStream: 
+  methods: 
+  - BeginToken
+  - Done
+  - GetImage
+  - GetSuffix
+  - ReInit
+  - adjustBeginLineColumn
+  - backup
+  - getBeginColumn
+  - getBeginLine
+  - getColumn
+  - getEndColumn
+  - getEndLine
+  - getLine
+  - getTabSize
+  - readChar
+  - setTabSize
+  properties: 
+  - bufpos
+  - staticFlag
 SimpleFunction: 
   methods: 
   - apply
@@ -10862,7 +12263,6 @@ SingleStoreSchemaTransformReadConfiguration:
   - toBeamRow
 SingleStoreSchemaTransformReadProvider: 
   methods: 
-  - buildTransform
   - expand
   - identifier
   - inputCollectionNames
@@ -10880,7 +12280,6 @@ SingleStoreSchemaTransformWriteConfiguration:
   - toBeamRow
 SingleStoreSchemaTransformWriteProvider: 
   methods: 
-  - buildTransform
   - expand
   - identifier
   - inputCollectionNames
@@ -11195,19 +12594,15 @@ SnsIO:
   - withAWSClientsProvider
   - withClientConfiguration
   - withCoder
-  - withFullPublishResponse
-  - withFullPublishResponseWithoutHeaders
   - withFullPublishResult
   - withFullPublishResultWithoutHeaders
   - withPublishRequestBuilder
   - withPublishRequestFn
   - withResultOutputTag
   - withRetryConfiguration
-  - withSnsClientProvider
   - withTopicArn
   - withTopicName
   - write
-  - writeAsync
 SocketAddressFactory: 
   methods: 
   - createFrom
@@ -11331,12 +12726,43 @@ SpannerAccessor:
   - getDatabaseAdminClient
   - getDatabaseClient
   - getOrCreate
+SpannerChangestreamsReadSchemaTransformProvider: 
+  methods: 
+  - build
+  - builder
+  - expand
+  - finish
+  - from
+  - getChangeStreamName
+  - getDatabaseId
+  - getEndAtTimestamp
+  - getGson
+  - getInstanceId
+  - getProjectId
+  - getStartAtTimestamp
+  - getTable
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
+  - process
+  - setChangeStreamName
+  - setDatabaseId
+  - setEndAtTimestamp
+  - setInstanceId
+  - setProjectId
+  - setStartAtTimestamp
+  - setTable
+  properties: 
+  - ERROR_SCHEMA
+  - ERROR_TAG
+  - OUTPUT_TAG
 SpannerConfig: 
   methods: 
   - build
   - create
   - getCommitDeadline
   - getCommitRetrySettings
+  - getDataBoostEnabled
   - getDatabaseId
   - getDatabaseRole
   - getEmulatorHost
@@ -11345,6 +12771,8 @@ SpannerConfig:
   - getInstanceId
   - getIsLocalChannelProvider
   - getMaxCumulativeBackoff
+  - getPartitionQueryTimeout
+  - getPartitionReadTimeout
   - getProjectId
   - getRetryableCodes
   - getRpcPriority
@@ -11352,6 +12780,7 @@ SpannerConfig:
   - validate
   - withCommitDeadline
   - withCommitRetrySettings
+  - withDataBoostEnabled
   - withDatabaseId
   - withDatabaseRole
   - withEmulatorHost
@@ -11360,6 +12789,8 @@ SpannerConfig:
   - withInstanceId
   - withIsLocalChannelProvider
   - withMaxCumulativeBackoff
+  - withPartitionQueryTimeout
+  - withPartitionReadTimeout
   - withProjectId
   - withRetryableCodes
   - withRpcPriority
@@ -11422,6 +12853,20 @@ SpannerIO:
   - withTraceSampleProbability
   - withTransaction
   - write
+SpannerSchema: 
+  methods: 
+  - addColumn
+  - addKeyPart
+  - build
+  - builder
+  - getCellsMutatedPerColumn
+  - getCellsMutatedPerRow
+  - getColumns
+  - getField
+  - getKeyParts
+  - getName
+  - getTables
+  - getType
 SpannerTransformRegistrar: 
   methods: 
   - buildExternal
@@ -11431,6 +12876,7 @@ SpannerTransformRegistrar:
   - setCommitDeadline
   - setDatabaseId
   - setEmulatorHost
+  - setFailureMode
   - setGroupingFactor
   - setHost
   - setInstanceId
@@ -11463,15 +12909,16 @@ SpannerWriteResult:
 SpannerWriteSchemaTransformProvider: 
   methods: 
   - build
-  - buildTransform
   - builder
   - expand
+  - finish
   - getDatabaseId
   - getInstanceId
   - getTableId
   - identifier
   - inputCollectionNames
   - outputCollectionNames
+  - process
   - setDatabaseId
   - setInstanceId
   - setTableId
@@ -11484,6 +12931,7 @@ SparkReceiverIO:
   - withPullFrequencySec
   - withSparkReceiverBuilder
   - withStartOffset
+  - withStartPollTimeoutSec
   - withTimestampFn
 Split: 
   methods: 
@@ -11502,6 +12950,7 @@ SplunkEvent:
   methods: 
   - create
   - event
+  - fields
   - host
   - index
   - newBuilder
@@ -11509,11 +12958,20 @@ SplunkEvent:
   - sourceType
   - time
   - withEvent
+  - withFields
   - withHost
   - withIndex
   - withSource
   - withSourceType
   - withTime
+SplunkEventCoder: 
+  methods: 
+  - decode
+  - encode
+  - getCoderProvider
+  - getEncodedTypeDescriptor
+  - of
+  - verifyDeterministic
 SplunkIO: 
   methods: 
   - expand
@@ -11639,11 +13097,24 @@ SqlTransform:
   - withPositionalParameters
   - withQueryPlannerClass
   - withTableProvider
+  properties: 
+  - PCOLLECTION_NAME
 SqlTransformRunner: 
   methods: 
   - getIdentifiers
+  - processElement
   - runUsingSqlTransform
   - visit
+SqlTransformSchemaTransformProvider: 
+  methods: 
+  - configurationSchema
+  - description
+  - expand
+  - from
+  - getInputs
+  - identifier
+  - inputCollectionNames
+  - outputCollectionNames
 SqlTypes: 
   properties: 
   - DATE
@@ -11652,18 +13123,32 @@ SqlTypes:
   - TIMESTAMP
 SqsIO: 
   methods: 
+  - apply
+  - close
   - expand
+  - finishBundle
+  - finishSpecifyingOutput
+  - getPipeline
+  - process
   - processElement
   - read
   - setup
+  - startBundle
   - teardown
+  - to
+  - withBatchSize
+  - withBatchTimeout
   - withClientConfiguration
   - withCoder
+  - withConcurrentRequests
+  - withEntryMapper
   - withMaxNumRecords
   - withMaxReadTime
   - withQueueUrl
-  - withSqsClientProvider
   - write
+  - writeBatches
+  properties: 
+  - EXPIRATION_CHECK_TIMEOUT_SECS
 SqsMessage: 
   methods: 
   - create
@@ -11679,7 +13164,9 @@ StateBackedIterable:
   - getCoderTranslators
   - getCoderURNs
   - getComponents
-  - iterator
+  - hasNext
+  - next
+  - remove
 StateContexts: 
   methods: 
   - getPipelineOptions
@@ -11739,6 +13226,11 @@ StaticSchemaInference:
   - fieldFromType
   - schemaFromClass
   - sortBySchema
+StorageApiCDC: 
+  properties: 
+  - CHANGE_SQN_COLUMN
+  - CHANGE_TYPE_COLUMN
+  - COLUMNS
 StorageApiConvertMessages: 
   methods: 
   - expand
@@ -11746,6 +13238,7 @@ StorageApiConvertMessages:
   - processElement
 StorageApiDynamicDestinationsTableRow: 
   methods: 
+  - getDescriptor
   - getMessageConverter
   - getTableSchema
   - toMessage
@@ -11763,11 +13256,21 @@ StorageApiLoads:
   - expandInconsistent
   - expandTriggered
   - expandUntriggered
+  - getFailedRowsTag
   - processElement
   - setup
 StorageApiWritePayload: 
   methods: 
+  - build
   - getPayload
+  - getTimestamp
+  - getUnknownFields
+  - getUnknownFieldsPayload
+  - setPayload
+  - setTimestamp
+  - setUnknownFieldsPayload
+  - toBuilder
+  - withTimestamp
 StorageApiWriteRecordsInconsistent: 
   methods: 
   - expand
@@ -11790,6 +13293,27 @@ StorageApiWritesShardedRecords:
   - process
   - startBundle
   - toString
+StreamPartitionWithWatermark: 
+  methods: 
+  - equals
+  - getPartition
+  - getWatermark
+  - hashCode
+  - toString
+StreamProgress: 
+  methods: 
+  - equals
+  - getCloseStream
+  - getCurrentToken
+  - getEstimatedLowWatermark
+  - getLastRunTimestamp
+  - getThroughputEstimate
+  - hashCode
+  - isEmpty
+  - isFailToLock
+  - isHeartbeat
+  - setFailToLock
+  - toString
 StreamUtils: 
   methods: 
   - getBytesWithoutClosing
@@ -11806,12 +13330,24 @@ StreamingWriteTables:
   methods: 
   - apply
   - expand
+  - getFailedRowsTupleTag
 StringAgg: 
   methods: 
   - addInput
   - createAccumulator
   - extractOutput
   - mergeAccumulators
+StringCompiler: 
+  methods: 
+  - getBytes
+  - getCharContent
+  - getClass
+  - getClassLoader
+  - getDiagnostics
+  - getInstance
+  - getJavaFileForOutput
+  - guessExpressionType
+  - openOutputStream
 StringDelegateCoder: 
   methods: 
   - decode
@@ -12129,6 +13665,7 @@ TableDestination:
   - getClustering
   - getJsonClustering
   - getJsonTimePartitioning
+  - getShortTableUrn
   - getTableDescription
   - getTableReference
   - getTableSpec
@@ -12198,6 +13735,7 @@ TableRowToStorageApiProto:
   - tableFieldToProtoTableField
   - tableRowFromMessage
   - typeToProtoType
+  - wrapDescriptorProto
 TableSchema: 
   methods: 
   - array
@@ -12224,6 +13762,7 @@ TableSchema:
   - typeName
   - withNullable
   properties: 
+  - BOOL
   - DATE
   - DATETIME
   - FLOAT32
@@ -12248,6 +13787,15 @@ TableSchemaJSONLoader:
   methods: 
   - getAllTableNames
   - parseTableSchema
+TableSchemaUpdateUtils: 
+  methods: 
+  - getUpdatedSchema
+TableUtils: 
+  methods: 
+  - convertNode2Map
+  - emptyProperties
+  - getObjectMapper
+  - parseProperties
 TaggedPValue: 
   methods: 
   - getTag
@@ -12364,6 +13912,7 @@ TextIO:
   - withNumShards
   - withOutputFilenames
   - withShardNameTemplate
+  - withSkipHeaderLines
   - withSuffix
   - withTempDirectory
   - withWindowedWrites
@@ -12387,6 +13936,7 @@ TextRowCountEstimator:
   - getFilePattern
   - getNumSampledBytesPerFile
   - getSamplingStrategy
+  - getSkipHeaderLines
   - setCompression
   - setDelimiters
   - setDirectoryTreatment
@@ -12394,7 +13944,13 @@ TextRowCountEstimator:
   - setFilePattern
   - setNumSampledBytesPerFile
   - setSamplingStrategy
+  - setSkipHeaderLines
   - stopSampling
+TextSource: 
+  methods: 
+  - getCurrent
+  - getOutputCoder
+  - getSplitPointsRemaining
 TextSourceBenchmark: 
   methods: 
   - benchmarkHadoopLineReader
@@ -12463,6 +14019,10 @@ ThriftSchema:
   - schemaTypeCreator
   - toString
   - typedef
+ThrowingSink: 
+  methods: 
+  - expand
+  - processElement
 TikaIO: 
   methods: 
   - expand
@@ -12504,6 +14064,12 @@ TimerSpecs:
   - getTimeDomain
   - timer
   - timerMap
+TimestampConverter: 
+  methods: 
+  - microsecondToInstant
+  - toJodaTime
+  - toSeconds
+  - toThreetenInstant
 TimestampEncoding: {}
 TimestampExtractTransform: 
   methods: 
@@ -12592,6 +14158,28 @@ ToString:
 ToStringFnRunner: 
   methods: 
   - getPTransformRunnerFactories
+Token: 
+  methods: 
+  - getValue
+  - newToken
+  - toString
+  properties: 
+  - beginColumn
+  - beginLine
+  - endColumn
+  - endLine
+  - image
+  - kind
+  - next
+  - specialToken
+TokenMgrError: 
+  methods: 
+  - getMessage
+  properties: 
+  - INVALID_LEXICAL_STATE
+  - LEXICAL_ERROR
+  - LOOP_DETECTED
+  - STATIC_LEXER_ERROR
 Top: 
   methods: 
   - addInput
@@ -12729,6 +14317,19 @@ TransformHierarchy:
   - toAppliedPTransform
   - toString
   - visit
+TransformServiceConfig: 
+  methods: 
+  - empty
+  - getExpansionservices
+TransformServiceLauncher: 
+  methods: 
+  - forProject
+  - main
+  - setBeamVersion
+  - shutdown
+  - start
+  - status
+  - waitTillUp
 Transport: 
   methods: 
   - getJsonFactory
@@ -12940,6 +14541,7 @@ UnboundedScheduledExecutorService:
   - isPeriodic
   - isShutdown
   - isTerminated
+  - offer
   - run
   - schedule
   - scheduleAtFixedRate
@@ -12989,6 +14591,10 @@ UnionCoder:
 UnionTranslator: 
   methods: 
   - translate
+UniqueIdGenerator: 
+  methods: 
+  - generateRowKeyPrefix
+  - getNextId
 UnknownLogicalType: 
   methods: 
   - getPayload
@@ -13047,6 +14653,10 @@ UserCodeException:
   methods: 
   - wrap
   - wrapIf
+UserCodeExecutionException: {}
+UserCodeQuotaException: {}
+UserCodeRemoteSystemException: {}
+UserCodeTimeoutException: {}
 UserFunctionDefinitions: 
   methods: 
   - build
@@ -13329,6 +14939,15 @@ WebPathParser:
   - seriesId
   - storeId
   - studyId
+WeightedList: 
+  methods: 
+  - accumulateWeight
+  - add
+  - addAll
+  - getBacking
+  - getWeight
+  - isEmpty
+  - size
 WeightedValue: 
   methods: 
   - equals
@@ -13605,6 +15224,7 @@ WriteResult:
   - getFailedStorageApiInserts
   - getPipeline
   - getSuccessfulInserts
+  - getSuccessfulStorageApiInserts
   - getSuccessfulTableLoads
 WriteToPulsarDoFn: 
   methods: 
@@ -13638,10 +15258,15 @@ XmlSource:
   - getCurrent
   - getCurrentSource
   - getOutputCoder
+XmlWriteSchemaTransformFormatProvider: 
+  methods: 
+  - apply
+  - buildTransform
+  - expand
+  - identifier
 ZetaSQLQueryPlanner: 
   methods: 
   - convertToBeamRel
-  - createPlanner
   - getDefaultTimezone
   - getLanguageOptions
   - getZetaSqlRuleSets

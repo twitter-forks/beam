@@ -430,10 +430,11 @@ public class WindmillStateCache implements StatusDataProvider {
               localCache.computeIfAbsent(
                   new StateId(forKey, stateFamily, namespace), stateCache::getIfPresent));
 
-      return stateCacheEntry.flatMap(entry -> {
-              cacheHits.increment();
-              return entry.get(namespace, address);
-      });
+      return stateCacheEntry.flatMap(
+          entry -> {
+            cacheHits.increment();
+            return entry.get(namespace, address);
+          });
     }
 
     public <T extends State> void put(

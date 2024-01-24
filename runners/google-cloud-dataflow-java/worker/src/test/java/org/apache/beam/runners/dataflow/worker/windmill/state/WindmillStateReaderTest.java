@@ -114,8 +114,8 @@ public class WindmillStateReaderTest {
             DATA_KEY,
             SHARDING_KEY,
             WORK_TOKEN,
-                () -> null,
-                () -> Boolean.FALSE,
+            () -> null,
+            () -> Boolean.FALSE,
             counterSet.longSum(CounterName.named("stateFetches")),
             counterSet.distribution(CounterName.named("itemsPerFetch")),
             counterSet.distribution(CounterName.named("fetchLatency")));

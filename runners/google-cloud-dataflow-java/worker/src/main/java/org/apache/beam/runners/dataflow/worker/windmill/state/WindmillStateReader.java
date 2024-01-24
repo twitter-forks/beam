@@ -39,9 +39,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
-import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
@@ -386,7 +386,7 @@ public class WindmillStateReader {
       if (toFetch.isEmpty()) {
         return;
       }
-      //Update metrics
+      // Update metrics
       this.stateFetches.addValue(1L);
       this.itemsPerStateFetch.addValue((long) toFetch.size());
       try {
@@ -422,7 +422,8 @@ public class WindmillStateReader {
     long startTimeMs = DateTimeUtils.currentTimeMillis();
     KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
     try (AutoCloseable ignored = readWrapperSupplier.get()) {
-      KeyedGetDataResponse response = metricTrackingWindmillServerStub.getStateData(computation, keyedGetDataRequest);
+      KeyedGetDataResponse response =
+          metricTrackingWindmillServerStub.getStateData(computation, keyedGetDataRequest);
       long fetchDurationMs = DateTimeUtils.currentTimeMillis() - startTimeMs;
       this.stateFetchLatencyMs.addValue(fetchDurationMs);
       return Optional.ofNullable(response)

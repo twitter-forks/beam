@@ -96,7 +96,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
             // recursive glob
             int index = spec.indexOf("**");
             metadata.addAll(
-                    matchRecursiveGlob(spec.substring(0, index + 1), spec.substring(index + 1)));
+                matchRecursiveGlob(spec.substring(0, index + 1), spec.substring(index + 1)));
           } else {
             // normal glob
             final Path path = new Path(spec);
@@ -123,7 +123,8 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   private Set<Metadata> matchRecursiveGlob(String directorySpec, String fileSpec)
       throws IOException {
     synchronized (configuration) {
-      final org.apache.hadoop.fs.FileSystem fs = new Path(directorySpec).getFileSystem(configuration);
+      final org.apache.hadoop.fs.FileSystem fs =
+          new Path(directorySpec).getFileSystem(configuration);
       Set<Metadata> metadata = new HashSet<>();
       if (directorySpec.contains("*")) {
         // An abstract directory with a wildcard is converted to concrete directories to search.
@@ -131,7 +132,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         for (FileStatus directoryStatus : directoryStatuses) {
           if (directoryStatus.isDirectory()) {
             metadata.addAll(
-                    matchRecursiveGlob(directoryStatus.getPath().toUri().toString(), fileSpec));
+                matchRecursiveGlob(directoryStatus.getPath().toUri().toString(), fileSpec));
           }
         }
       } else {
@@ -148,7 +149,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         for (FileStatus directoryStatus : directoryStatuses) {
           if (directoryStatus.isDirectory()) {
             metadata.addAll(
-                    matchRecursiveGlob(directoryStatus.getPath().toUri().toString(), fileSpec));
+                matchRecursiveGlob(directoryStatus.getPath().toUri().toString(), fileSpec));
           }
         }
 
@@ -156,9 +157,9 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         if (fileSpec.contains("**")) {
           int index = fileSpec.indexOf("**");
           metadata.addAll(
-                  matchRecursiveGlob(
-                          directorySpec + "/" + fileSpec.substring(0, index + 1),
-                          fileSpec.substring(index + 1)));
+              matchRecursiveGlob(
+                  directorySpec + "/" + fileSpec.substring(0, index + 1),
+                  fileSpec.substring(index + 1)));
         }
       }
       return metadata;
@@ -180,13 +181,13 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       throws IOException {
     synchronized (configuration) {
       return Channels.newChannel(
-              resourceId.toPath().getFileSystem(configuration).create(resourceId.toPath()));
+          resourceId.toPath().getFileSystem(configuration).create(resourceId.toPath()));
     }
   }
 
   @Override
   protected ReadableByteChannel open(HadoopResourceId resourceId) throws IOException {
-    synchronized(configuration) {
+    synchronized (configuration) {
       final org.apache.hadoop.fs.FileSystem fs = resourceId.toPath().getFileSystem(configuration);
       final FileStatus fileStatus = fs.getFileStatus(resourceId.toPath());
       return new HadoopSeekableByteChannel(fileStatus, fs.open(resourceId.toPath()));
@@ -200,9 +201,10 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       for (int i = 0; i < srcResourceIds.size(); ++i) {
         // this enforces src and dest file systems to match
         final org.apache.hadoop.fs.FileSystem fs =
-                srcResourceIds.get(i).toPath().getFileSystem(configuration);
+            srcResourceIds.get(i).toPath().getFileSystem(configuration);
         // Unfortunately HDFS FileSystems don't support a native copy operation so we are forced
-        // to use the inefficient implementation found in FileUtil which copies all the bytes through
+        // to use the inefficient implementation found in FileUtil which copies all the bytes
+        // through
         // the local machine.
         //
         // HDFS FileSystem does define a concat method but could only find the DFSFileSystem
@@ -210,20 +212,20 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         // is not what we want. Also, all the other FileSystem implementations I saw threw
         // UnsupportedOperationException within concat.
         final boolean success =
-                FileUtil.copy(
-                        fs,
-                        srcResourceIds.get(i).toPath(),
-                        fs,
-                        destResourceIds.get(i).toPath(),
-                        false,
-                        true,
-                        fs.getConf());
+            FileUtil.copy(
+                fs,
+                srcResourceIds.get(i).toPath(),
+                fs,
+                destResourceIds.get(i).toPath(),
+                false,
+                true,
+                fs.getConf());
         if (!success) {
           // Defensive coding as this should not happen in practice
           throw new IOException(
-                  String.format(
-                          "Unable to copy resource %s to %s. No further information provided by underlying filesystem.",
-                          srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
+              String.format(
+                  "Unable to copy resource %s to %s. No further information provided by underlying filesystem.",
+                  srcResourceIds.get(i).toPath(), destResourceIds.get(i).toPath()));
         }
       }
     }
@@ -283,20 +285,20 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         if (!success) {
           if (!fs.exists(srcPath)) {
             throw new FileNotFoundException(
-                    String.format(
-                            "Unable to rename resource %s to %s as source not found.", srcPath, destPath));
+                String.format(
+                    "Unable to rename resource %s to %s as source not found.", srcPath, destPath));
 
           } else if (fs.exists(destPath)) {
             throw new FileAlreadyExistsException(
-                    String.format(
-                            "Unable to rename resource %s to %s as destination already exists and couldn't be deleted.",
-                            srcPath, destPath));
+                String.format(
+                    "Unable to rename resource %s to %s as destination already exists and couldn't be deleted.",
+                    srcPath, destPath));
 
           } else {
             throw new IOException(
-                    String.format(
-                            "Unable to rename resource %s to %s. No further information provided by underlying filesystem.",
-                            srcPath, destPath));
+                String.format(
+                    "Unable to rename resource %s to %s. No further information provided by underlying filesystem.",
+                    srcPath, destPath));
           }
         }
       }
@@ -312,9 +314,9 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         LOG.debug(LOG_CREATE_DIRECTORY, Path.getPathWithoutSchemeAndAuthority(targetDirectory));
         if (!fs.mkdirs(targetDirectory)) {
           throw new IOException(
-                  String.format(
-                          "Unable to create target directory %s. No further information provided by underlying filesystem.",
-                          targetDirectory));
+              String.format(
+                  "Unable to create target directory %s. No further information provided by underlying filesystem.",
+                  targetDirectory));
         }
       }
     }
