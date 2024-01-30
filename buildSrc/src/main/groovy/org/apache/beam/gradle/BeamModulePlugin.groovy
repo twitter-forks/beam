@@ -503,6 +503,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
+    project.version = '2.53.0.twttr1'
+
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
     project.apply plugin: 'base'
