@@ -39,7 +39,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.MetricTrackingWindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
-import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -128,8 +127,6 @@ public class WindmillStateReader {
   private final ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting;
   private long bytesRead = 0L;
 
-  private final Supplier<Boolean> workItemIsFailed;
-
   private final Counter<Long, Long> stateFetches;
   private final Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch;
   private final Counter<Long, CounterFactory.CounterDistribution> stateFetchLatencyMs;
@@ -141,7 +138,6 @@ public class WindmillStateReader {
       long shardingKey,
       long workToken,
       Supplier<AutoCloseable> readWrapperSupplier,
-      Supplier<Boolean> workItemIsFailed,
       Counter<Long, Long> stateFetches,
       Counter<Long, CounterFactory.CounterDistribution> itemsPerStateFetch,
       Counter<Long, CounterFactory.CounterDistribution> stateFetchLatencyMs) {
@@ -153,7 +149,6 @@ public class WindmillStateReader {
     this.readWrapperSupplier = readWrapperSupplier;
     this.waiting = new ConcurrentHashMap<>();
     this.pendingLookups = new ConcurrentLinkedQueue<>();
-    this.workItemIsFailed = workItemIsFailed;
     this.stateFetches = stateFetches;
     this.itemsPerStateFetch = itemsPerStateFetch;
     this.stateFetchLatencyMs = stateFetchLatencyMs;
@@ -416,9 +411,6 @@ public class WindmillStateReader {
 
   private KeyedGetDataResponse tryGetDataFromWindmill(HashSet<StateTag<?>> stateTags)
       throws Exception {
-    if (workItemIsFailed.get()) {
-      throw new WorkItemCancelledException(shardingKey);
-    }
     long startTimeMs = DateTimeUtils.currentTimeMillis();
     KeyedGetDataRequest keyedGetDataRequest = createRequest(stateTags);
     try (AutoCloseable ignored = readWrapperSupplier.get()) {

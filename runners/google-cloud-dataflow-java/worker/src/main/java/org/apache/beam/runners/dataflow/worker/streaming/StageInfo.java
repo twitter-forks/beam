@@ -89,6 +89,8 @@ public abstract class StageInfo {
 
   public abstract Counter<Long, Long> totalProcessingMsecs();
 
+  public abstract Counter<Long, Long> timerProcessingMsecs();
+
   public abstract Counter<Long, Long> stateFetches();
 
   public abstract Counter<Long, CounterFactory.CounterDistribution> stateFetchLatency();
