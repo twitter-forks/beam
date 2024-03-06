@@ -36,12 +36,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.13.8
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.42.2
 	github.com/aws/smithy-go v1.19.0
-	github.com/docker/go-connections v0.4.0
+	github.com/docker/go-connections v0.5.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang/protobuf v1.5.3 // TODO(danoliveira): Fully replace this with google.golang.org/protobuf
 	github.com/google/go-cmp v0.6.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/johannesboyne/gofakes3 v0.0.0-20221110173912-32fb85c5aed6
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.12.0
@@ -49,7 +49,7 @@ require (
 	github.com/nats-io/nats.go v1.31.0
 	github.com/proullon/ramsql v0.1.3
 	github.com/spf13/cobra v1.8.0
-	github.com/testcontainers/testcontainers-go v0.26.0
+	github.com/testcontainers/testcontainers-go v0.29.1
 	github.com/tetratelabs/wazero v1.5.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20220315005136-aec0fe3e777c
@@ -57,7 +57,7 @@ require (
 	golang.org/x/net v0.19.0
 	golang.org/x/oauth2 v0.15.0
 	golang.org/x/sync v0.5.0
-	golang.org/x/sys v0.15.0
+	golang.org/x/sys v0.16.0
 	golang.org/x/text v0.14.0
 	google.golang.org/api v0.154.0
 	google.golang.org/genproto v0.0.0-20231120223509-83a465c0220f
@@ -75,18 +75,21 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
-	github.com/Microsoft/hcsshim v0.11.1 // indirect
+	github.com/Microsoft/hcsshim v0.11.4 // indirect
 	github.com/containerd/log v0.1.0 // indirect
+	github.com/distribution/reference v0.5.0 // indirect
+	github.com/frankban/quicktest v1.11.3 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
+	github.com/moby/sys/user v0.1.0 // indirect
 	github.com/nats-io/jwt/v2 v2.5.3 // indirect
 	github.com/nats-io/nkeys v0.4.6 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/shirou/gopsutil/v3 v3.23.9 // indirect
+	github.com/shirou/gopsutil/v3 v3.23.12 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
@@ -130,10 +133,9 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
 	github.com/cncf/xds/go v0.0.0-20230607035331-e9ce68804cb4 // indirect
-	github.com/containerd/containerd v1.7.7 // indirect
+	github.com/containerd/containerd v1.7.12 // indirect
 	github.com/cpuguy83/dockercfg v0.3.1 // indirect
-	github.com/docker/distribution v2.8.2+incompatible // indirect
-	github.com/docker/docker v24.0.7+incompatible // but required to resolve issue docker has with go1.20
+	github.com/docker/docker v25.0.3+incompatible // but required to resolve issue docker has with go1.20
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.11.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.0.2 // indirect
@@ -165,8 +167,7 @@ require (
 	github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
-	github.com/opencontainers/runc v1.1.5 // indirect
+	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/xattr v0.4.9 // indirect
@@ -181,8 +182,8 @@ require (
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/mod v0.11.0 // indirect
-	golang.org/x/tools v0.10.0 // indirect
+	golang.org/x/mod v0.16.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231120223509-83a465c0220f // indirect
